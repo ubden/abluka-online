@@ -1,0 +1,73 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*' # v1.0, v1.1, v20.15.10 gibi sürüm etiketleri
+
+jobs:
+  build:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller pillow setuptools wheel
+        
+    - name: Create Icon
+      run: |
+        python .github/scripts/create_icon.py
+        
+    - name: Create SVG Logo
+      run: |
+        python .github/scripts/create_logo.py
+        
+    - name: Build executable
+      run: |
+        pyinstaller --name "Abluka" --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" run_abluka.py
+        
+    - name: Test executable
+      run: |
+        dir dist
+        
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: Abluka ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+        files: |
+          dist/Abluka.exe
+          abluka_logo.svg
+          assets/icon.png
+        body: |
+          # Abluka ${{ github.ref_name }}
+          
+          ![Abluka Logo](https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/abluka_logo.svg)
+          
+          Abluka, Türkiye Akıl ve Zeka Oyunları'ndan stratejik bir tahta oyunudur.
+          
+          ## Yenilikler:
+          - Güçlendirilmiş yapay zeka (Zor seviye: 9 hamle ileriye bakarak analiz eder)
+          - AI duygu gösterimleri ve mesajları eklendi
+          - Yeni "Nasıl Oynanır" bölümü
+          - Oyun sonu menü hataları düzeltildi
+          
+          ## Kurulum
+          1. Abluka.exe dosyasını indirin
+          2. Çift tıklayarak oyunu başlatın
+          
+          Çevrimiçi ve çevrimdışı oynanabilir.
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
