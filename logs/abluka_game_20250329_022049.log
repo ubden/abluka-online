@@ -1,0 +1,48 @@
+Abluka AI Log - 2025-03-29 02:20:49
+Mod (Difficulty): easy
+------------------------------------------------
+
+Hamle #1
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 3)
+Engel: (5, 3)
+Strateji: Easy => (previously normal) Minimax
+Tahta Durumu:
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #2
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 4)
+Engel: (2, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . X . . .
+. . . . . . .
+. . . . . . .
+. . . X W . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #3
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 4)
+Engel: (4, 4)
+Strateji: Easy => (previously normal) Minimax
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . X . . .
+. . . . . . .
+. . . . . . .
+. . . X W . .
+. . . . . . .
+------------------------------------------------

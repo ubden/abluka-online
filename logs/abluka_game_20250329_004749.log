@@ -1,0 +1,333 @@
+Abluka Oyunu - 2025-03-29 00:47:49
+AI Zorluk: hard
+-----------------------------------------------------------------------------
+
+Hamle #1
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 3)
+Engel: (5, 3)
+Strateji: (3,3): Baskı bölgesinde, Rakibin hareketini 1 kadar kısıtlıyor, Merkeze yakın kontrol
+Tahta Durumu:
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . W . . .
+-----------------------------------------------------------------------------
+
+Hamle #2
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 2)
+Engel: (2, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #3
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 4)
+Engel: (4, 3)
+Strateji: (2,4): Baskı bölgesinde, Rakibin hareketini 1 kadar kısıtlıyor, Merkeze yakın kontrol
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #4
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 2)
+Engel: (3, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . B . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #5
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 5)
+Engel: (3, 3)
+Strateji: (0,4): Baskı bölgesinde, Rakibin hareketini 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . B . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #6
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (1, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %47.9
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #7
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 5)
+Engel: (2, 2)
+Strateji: (2,4): Baskı bölgesinde, Rakibin hareketini 1 kadar kısıtlıyor, Merkeze yakın kontrol
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #8
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 2)
+Engel: (3, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . . B .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #9
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 5)
+Engel: (3, 2)
+Strateji: (1,5): Baskı bölgesinde, Rakibin hareketini 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . . B .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #10
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 1)
+Engel: (0, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %59.2
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. . . . . . .
+. . . . . . .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #11
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 5)
+Engel: (4, 2)
+Strateji: (2,5): Baskı bölgesinde, Rakibin hareketini 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. . . . . . .
+. . . . . . .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #12
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 1)
+Engel: (2, 6)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %61.2
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . . B .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #13
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 5)
+Engel: (3, 0)
+Strateji: Rakibi ablukaya alan hamle!
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . . B .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #14
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 1)
+Engel: (1, 6)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %60.2
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #15
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 4)
+Engel: (1, 2)
+Strateji: (2,5): Baskı bölgesinde, Rakibin hareketini 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #16
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (1, 1)
+Engel: (0, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %80.0
+Tahta Durumu:
+. . . . B . .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #17
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 3)
+Engel: (3, 1)
+Strateji: Rakibi ablukaya alan hamle!
+Tahta Durumu:
+. . . . B . .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #18
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (0, 2)
+Engel: (0, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %95.0
+Tahta Durumu:
+. . W . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #19
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 4)
+Engel: (0, 1)
+Strateji: Rakibi ablukaya alan hamle!
+Tahta Durumu:
+. . W . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #20
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (1, 1)
+Engel: (2, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %87.4
+Tahta Durumu:
+. . . . . . .
+. W . . . . .
+. . . . B . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #21
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 3)
+Engel: (2, 1)
+Strateji: Rakibi ablukaya alan hamle!
+Tahta Durumu:
+. . . . . . .
+. W . . . . .
+. . . . B . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #22
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (0, 2)
+Engel: (2, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %5.0
+Tahta Durumu:
+. . W . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------

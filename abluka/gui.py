@@ -29,7 +29,7 @@ class AblukaGUI:
     BOARD_LINES = (52, 58, 64)
     TRANSPARENT_WHITE = (255, 255, 255, 180)
     
-    def __init__(self, width=700, height=700):
+    def __init__(self, width=1000, height=950):
         pygame.init()
         pygame.display.set_caption("Abluka PC-  Ubden® Akademi PC Zeka Oyunu")
         
@@ -97,6 +97,14 @@ class AblukaGUI:
         
         # AI thinking flag to prevent multiple moves
         self.ai_thinking = False
+        
+        # AI'nın engel yerleştirme pozisyonu
+        self.ai_obstacle_pos = None
+        
+        # AI düşünme animasyonu için değişkenler
+        self.thinking_dots = 0
+        self.thinking_timer = 0
+        self.thinking_dots_update_interval = 400  # ms
     
     def initialize_game(self, mode, difficulty='normal'):
         """Initialize a new game with the given mode and difficulty"""
@@ -107,13 +115,14 @@ class AblukaGUI:
         self.game = Game()
         self.show_menu = False
         
-        # Square size based on board dimensions
+        # Tahta boyutunu belirle
         self.board_size = self.game.board.size
-        self.square_size = min(self.width, self.height) // (self.board_size + 2)  # +2 for margins
+        # Daha büyük bir tahta için daha küçük bölücü
+        self.square_size = int(min(self.width, self.height) // (self.board_size + 1.8))  # Tahtayı büyüt
         
-        # Board position (centered)
+        # Tahtayı status panel altına yerleştir, ama daha aşağıda
         self.board_left = (self.width - self.square_size * self.board_size) // 2
-        self.board_top = (self.height - self.square_size * self.board_size) // 2
+        self.board_top = 80  # Üst bilgi paneli için daha fazla alan
         
         # Game state tracking
         self.selected_pos = None
@@ -123,6 +132,7 @@ class AblukaGUI:
         self.highlighted_square = None
         self.obstacle_preview_pos = None
         self.ai_thinking = False
+        self.ai_obstacle_pos = None
         
         # For human vs AI, randomly assign player color
         if mode == 'human_vs_ai':
@@ -136,9 +146,8 @@ class AblukaGUI:
             
             # If AI goes first (player is white), trigger AI move
             if self.human_piece == 'W':
-                # Small delay before AI's first move
-                pygame.time.delay(500)
-                self.ai_thinking = True
+                # AI hamlesi için zamanlayıcı ile tetikle
+                pygame.time.set_timer(pygame.USEREVENT, 500)  # 500ms sonra
         else:
             self.ai_player = None
             self.human_piece = None
@@ -176,6 +185,11 @@ class AblukaGUI:
                 if event.type == pygame.QUIT:
                     running = False
                 
+                # Özel olay: AI hamlesi için
+                elif event.type == pygame.USEREVENT:
+                    pygame.time.set_timer(pygame.USEREVENT, 0)  # Timer'ı sıfırla
+                    self.ai_thinking = True  # AI düşünmeyi başlat
+                
                 if self.show_menu:
                     self._handle_menu_event(event)
                 elif not self.game.game_over and not self.animation_active:
@@ -206,11 +220,54 @@ class AblukaGUI:
                     if self.animation_piece and self.animation_end:
                         piece = self.animation_piece
                         self.game.board.move_piece(piece, self.animation_end)
-                        self.move_made = True
-                        self.obstacle_placement_phase = True
+                        
+                        # AI hamlesi ise engel yerleştirmeyi de hemen yap
+                        if hasattr(self, 'ai_obstacle_pos') and self.ai_obstacle_pos and self.mode == 'human_vs_ai' and piece != self.human_piece:
+                            obstacle_pos = self.ai_obstacle_pos
+                            self.ai_obstacle_pos = None
+                            
+                            # Engeli yerleştir
+                            self.game.board.place_obstacle(obstacle_pos)
+                            self.sound_manager.play('place_obstacle')
+                            
+                            # Obstacle sayısını azalt
+                            if piece == 'B':
+                                self.black_obstacles -= 1
+                            else:
+                                self.white_obstacles -= 1
+                                
+                            # Oyun durumunu kontrol et
+                            opponent = 'W' if piece == 'B' else 'B'
+                            if self.game.board.is_abluka(opponent):
+                                self.game.game_over = True
+                                self.game.winner = piece
+                                self.winner_message = f"{'Siyah' if piece == 'B' else 'Beyaz'} oyuncu (AI) kazandı!"
+                                self.status_message = "Oyun sona erdi!"
+                                self.sound_manager.play('game_win')
+                            else:
+                                # Sırayı değiştir
+                                self.game.switch_player()
+                                
+                                # Yeni oyuncu ablukada mı kontrol et
+                                if self.game.board.is_abluka(self.game.current_player):
+                                    self.game.game_over = True
+                                    self.game.winner = opponent
+                                    self.winner_message = f"{'Siyah' if opponent == 'B' else 'Beyaz'} oyuncu kazandı!"
+                                    self.status_message = "Oyun sona erdi!"
+                                    self.sound_manager.play('game_win')
+                                else:
+                                    self.status_message = f"{'Siyah' if self.game.current_player == 'B' else 'Beyaz'}'ın sırası."
+                                    
+                            # Engel fazını atla, direk insan oyuncunun sırası
+                            self.obstacle_placement_phase = False
+                        else:
+                            # Normal insan oyuncunun hamlesi
+                            self.move_made = True
+                            self.obstacle_placement_phase = True
+                            self.status_message = "Engel taşı yerleştirin."
+                            
                         self.selected_pos = None
                         self.valid_moves = []
-                        self.status_message = "Engel taşı yerleştirin."
             
             # Draw the game
             if self.show_menu:
@@ -348,9 +405,14 @@ class AblukaGUI:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 
                 # Check for navigation buttons
-                menu_rect = pygame.Rect(self.width - 280, 20, 80, 30)
-                restart_rect = pygame.Rect(self.width - 180, 20, 80, 30)
-                exit_rect = pygame.Rect(self.width - 80, 20, 80, 30)
+                button_width = 80
+                button_height = 30
+                button_spacing = 10
+                button_top = 10
+                
+                menu_rect = pygame.Rect(self.width - 3*button_width - 2*button_spacing - 20, button_top, button_width, button_height)
+                restart_rect = pygame.Rect(self.width - 2*button_width - button_spacing - 20, button_top, button_width, button_height)
+                exit_rect = pygame.Rect(self.width - button_width - 20, button_top, button_width, button_height)
                 
                 if menu_rect.collidepoint(mouse_x, mouse_y):
                     self.return_to_menu()
@@ -431,7 +493,7 @@ class AblukaGUI:
         
         # Check if the position is valid for placing an obstacle
         if self.game.board.grid[board_y][board_x] is None:
-            # Place the obstacle
+            # Place the obstacle - HEMEN YERLEŞTİR
             self.sound_manager.play('place_obstacle')
             self.game.board.place_obstacle(obstacle_pos)
             
@@ -441,6 +503,43 @@ class AblukaGUI:
             else:
                 self.white_obstacles -= 1
             
+            # İnsan oyuncunun hamlesini detaylı logla
+            human_player = self.game.current_player
+            human_move = (self.animation_end[0], self.animation_end[1]) if self.animation_end else None
+            
+            # Konsolda insan hamlesini logla
+            print(f"\n[INSAN] {human_player} oyuncusu (İnsan) hamle yaptı:")
+            print(f"[INSAN] Taş hareketi: {human_move}, Engel: {obstacle_pos}")
+            
+            # Eğer AI varsa tahta durumunu ve istatistikleri yazdır
+            if self.ai_player:
+                # Mevcut tahtayı değerlendir
+                opponent = 'W' if human_player == 'B' else 'B'
+                
+                # İnsan ve AI'nın hamle sayılarını yazdır
+                human_moves = len(self.game.board.get_valid_moves(human_player))
+                ai_moves = len(self.game.board.get_valid_moves(opponent))
+                print(f"[INSAN] Hamleden sonra hamle sayısı: {human_moves}")
+                print(f"[INSAN] AI'nın hamle sayısı: {ai_moves}")
+                
+                # İnsan hamlesi sonrası kazanma olasılığını hesapla
+                win_prob = self.ai_player._calculate_win_probability(self.game.board, human_player)
+                print(f"[INSAN] Tahmini kazanma olasılığı: %{win_prob:.1f}")
+                
+                # Etrafındaki engel sayısını göster
+                human_pos = self.game.board.black_pos if human_player == 'B' else self.game.board.white_pos
+                ai_pos = self.game.board.black_pos if opponent == 'B' else self.game.board.white_pos
+                
+                human_obstacles = self.ai_player._count_surrounding_obstacles(self.game.board, human_pos)
+                ai_obstacles = self.ai_player._count_surrounding_obstacles(self.game.board, ai_pos)
+                
+                print(f"[INSAN] Etraftaki engeller: İnsan: {human_obstacles}, AI: {ai_obstacles}")
+                
+                # Log dosyasına kaydet
+                self.ai_player._log_move('Human', human_move, obstacle_pos, 
+                                       f"İnsan oyuncu hamlesi - Kazanma olasılığı: %{win_prob:.1f}", 
+                                       self.game.board)
+            
             # Check if game is over
             opponent = 'W' if self.game.current_player == 'B' else 'B'
             if self.game.board.is_abluka(opponent):
@@ -449,6 +548,14 @@ class AblukaGUI:
                 self.winner_message = f"{'Siyah' if self.game.current_player == 'B' else 'Beyaz'} oyuncu kazandı!"
                 self.status_message = "Oyun sona erdi!"
                 self.sound_manager.play('game_win')
+                
+                # Oyun sonucunu logla
+                print(f"\n[OYUN SONUCU] {self.game.current_player} oyuncu (İnsan) kazandı!")
+                
+                # AI öğrenmesi için game_over olayı gönder
+                if self.ai_player and hasattr(self.ai_player, 'game_over_update'):
+                    ai_player = opponent  # AI'nın taşı
+                    self.ai_player.game_over_update(self.game.winner, ai_player)
             else:
                 # Switch turn
                 self.game.switch_player()
@@ -460,13 +567,22 @@ class AblukaGUI:
                     self.winner_message = f"{'Siyah' if opponent == 'B' else 'Beyaz'} oyuncu kazandı!"
                     self.status_message = "Oyun sona erdi!"
                     self.sound_manager.play('game_win')
-                else:
-                    self.status_message = f"{'Siyah' if self.game.current_player == 'B' else 'Beyaz'} oyuncunun sırası."
                     
-                    # Signal AI to make a move if it's its turn
+                    # Oyun sonucunu logla
+                    print(f"\n[OYUN SONUCU] {opponent} oyuncu ({'İnsan' if self.human_piece == opponent else 'AI'}) kazandı!")
+                    
+                    # AI öğrenmesi için game_over olayı gönder
+                    if self.ai_player and hasattr(self.ai_player, 'game_over_update'):
+                        ai_player = self.game.current_player if self.human_piece != self.game.current_player else opponent
+                        self.ai_player.game_over_update(self.game.winner, ai_player)
+                else:
+                    self.status_message = f"{'Siyah' if self.game.current_player == 'B' else 'Beyaz'}'ın sırası."
+                    
+                    # AI hamlesini kısa bir beklemeden sonra yap
                     if (self.mode == 'human_vs_ai' and 
                         self.game.current_player != self.human_piece):
-                        self.ai_thinking = True
+                        # Çok kısa bir süre sonra AI'yı tetikle
+                        pygame.time.set_timer(pygame.USEREVENT, 300)  # 300ms bekle
             
             # Reset for next turn
             self.obstacle_placement_phase = False
@@ -479,9 +595,12 @@ class AblukaGUI:
     def _make_ai_move(self):
         """Make a move for the AI player"""
         if not self.obstacle_placement_phase and self.ai_thinking:  # Only make a move if not in obstacle placement phase
-            # Set flag to prevent multiple AI moves
-            self.ai_thinking = False
+            # AI hamlesini almadan önce düşünme animasyonunu göster
+            self.screen.fill(self.MENU_BG)
+            self._draw()
+            pygame.display.flip()
             
+            # Get AI's move
             game_state = self.game.get_game_state()
             move_pos, obstacle_pos = self.ai_player.choose_move(game_state)
             
@@ -493,6 +612,9 @@ class AblukaGUI:
                 self.fade_duration = 3.0  # Biraz daha uzun göster
             
             if move_pos and obstacle_pos:
+                # Set AI thinking to false after getting move
+                self.ai_thinking = False
+                
                 # Start animation for AI move
                 piece = self.game.current_player
                 start_pos = self.game.board.black_pos if piece == 'B' else self.game.board.white_pos
@@ -505,52 +627,16 @@ class AblukaGUI:
                 self.animation_progress = 0
                 self.animation_timer = pygame.time.get_ticks()
                 
-                # Wait for animation to complete
-                while self.animation_active:
-                    current_time = pygame.time.get_ticks()
-                    elapsed = (current_time - self.animation_timer) / 1000.0
-                    self.animation_progress = min(elapsed / self.animation_speed, 1.0)
-                    
-                    if self.animation_progress >= 1.0:
-                        self.animation_active = False
-                        self.game.board.move_piece(piece, move_pos)
-                    
-                    # Update display during waiting
-                    self._draw()
-                    pygame.display.flip()
-                    self.clock.tick(60)
-                
-                # Delay before placing obstacle
-                pygame.time.delay(300)
-                
-                # Place the obstacle
-                self.game.board.place_obstacle(obstacle_pos)
-                
-                # Decrease obstacle count (visual only)
-                if piece == 'B':
-                    self.black_obstacles -= 1
-                else:
-                    self.white_obstacles -= 1
-                
-                # Check if game is over
-                opponent = 'W' if piece == 'B' else 'B'
-                if self.game.board.is_abluka(opponent):
-                    self.game.game_over = True
-                    self.game.winner = piece
-                    self.winner_message = f"{'Siyah' if piece == 'B' else 'Beyaz'} oyuncu (AI) kazandı!"
-                    self.status_message = "Oyun sona erdi!"
-                else:
-                    # Switch turn
-                    self.game.switch_player()
-                    
-                    # Check if the new current player is in abluka
-                    if self.game.board.is_abluka(self.game.current_player):
-                        self.game.game_over = True
-                        self.game.winner = opponent
-                        self.winner_message = f"{'Siyah' if opponent == 'B' else 'Beyaz'} oyuncu kazandı!"
-                        self.status_message = "Oyun sona erdi!"
-                    else:
-                        self.status_message = f"{'Siyah' if self.game.current_player == 'B' else 'Beyaz'} oyuncunun sırası."
+                # Engel yerleştirme bilgisini sakla, taş hareketi tamamlanınca kullanılacak
+                self.ai_obstacle_pos = obstacle_pos
+            else:
+                # AI couldn't make a move
+                self.ai_thinking = False
+                self.game.game_over = True
+                self.game.winner = self.human_piece
+                self.winner_message = f"{'Siyah' if self.human_piece == 'B' else 'Beyaz'} oyuncu (İnsan) kazandı!"
+                self.status_message = "AI hamle yapamadı!"
+                self.sound_manager.play('game_win')
     
     def _draw_menu(self):
         """Draw the menu screen with premium UI"""
@@ -762,8 +848,7 @@ class AblukaGUI:
             "Normal = AI stratejik hamleler yapar",
             "Zor = AI 5 hamle ileriye bakar ve kazanmak için oynar",
             "",
-            "Ubden® Akademi",
-            "Çıkmak için ESC tuşuna basın."
+            "Developer: Ubden®"
         ]
         
         y_offset = 120
@@ -788,109 +873,248 @@ class AblukaGUI:
         self.screen.blit(back_text, back_rect)
     
     def _draw(self):
-        """Draw the game state"""
-        # Fill the background
-        self.screen.fill(self.GRAY)
+        """Draw the game screen"""
+        self.screen.fill(self.MENU_BG)
         
-        # Draw the board
+        # Draw navigational buttons at top - first so they don't overlap
+        if self.show_nav_buttons:
+            self._draw_navigation_buttons()
+            
+        # Draw the board background
         self._draw_board()
         
-        # Draw obstacle stacks
+        # Draw obstacles and pieces
         self._draw_obstacle_stacks()
-        
-        # Draw the pieces and obstacles
         self._draw_pieces_and_obstacles()
         
-        # Draw the highlighted squares
+        # Draw highlighted squares and valid moves
         self._draw_highlights()
         
         # Draw obstacle preview
-        self._draw_obstacle_preview()
+        if self.obstacle_placement_phase:
+            self._draw_obstacle_preview()
         
-        # Draw status and winner messages
+        # Draw Status - after everything else
         self._draw_status()
         
-        # Draw navigation buttons
-        self._draw_navigation_buttons()
         
-        # Draw fade message if active
-        self._draw_fade_message()
+        # Draw AI thinking animation
+        if self.ai_thinking and not self.animation_active:
+            self._draw_thinking_animation()
         
-        # Draw game over screen if game is over
-        if self.game and self.game.game_over:
+        # Draw game over message
+        if self.game.game_over:
             self._draw_game_over()
+        
+        # Draw fading message if exists
+        if self.fade_message:
+            self._draw_fade_message()
+            
+    
+    def _draw_thinking_animation(self):
+        """Draw AI thinking animation in the center of the screen"""
+        current_time = pygame.time.get_ticks()
+        
+        # Update thinking dots animation
+        if current_time - self.thinking_timer > self.thinking_dots_update_interval:
+            self.thinking_dots = (self.thinking_dots + 1) % 4
+            self.thinking_timer = current_time
+        
+        # Create thinking text with animated dots
+        dots = "." * self.thinking_dots
+        thinking_text = f"AI Düşünüyor{dots}"
+        
+        # Create a semi-transparent background for the thinking indicator
+        indicator_width = 200
+        indicator_height = 50
+        indicator_x = (self.width - indicator_width) // 2
+        indicator_y = (self.height - indicator_height) // 2
+        
+        # Draw semi-transparent overlay for entire screen
+        overlay = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 50))
+        self.screen.blit(overlay, (0, 0))
+        
+        # Draw thinking panel with glow effect
+        panel_glow_surf = pygame.Surface((indicator_width + 20, indicator_height + 20), pygame.SRCALPHA)
+        glow_alpha = int(150 + 100 * (math.sin(current_time / 300) * 0.5 + 0.5))  # Pulsating glow
+        panel_glow_surf.fill((self.GOLD[0], self.GOLD[1], self.GOLD[2], 40))
+        panel_glow_rect = panel_glow_surf.get_rect(center=(self.width // 2, self.height // 2))
+        self.screen.blit(panel_glow_surf, panel_glow_rect)
+        
+        # Draw main panel
+        s = pygame.Surface((indicator_width, indicator_height), pygame.SRCALPHA)
+        s.fill((30, 30, 30, 220))
+        self.screen.blit(s, (indicator_x, indicator_y))
+        pygame.draw.rect(self.screen, self.GOLD, (indicator_x, indicator_y, indicator_width, indicator_height), 2)
+        
+        # Draw the thinking text
+        text_surface = self.font.render(thinking_text, True, self.WHITE)
+        text_rect = text_surface.get_rect(center=(indicator_x + indicator_width // 2, indicator_y + indicator_height // 2))
+        self.screen.blit(text_surface, text_rect)
+        
+        # Draw animated spinner
+        spinner_radius = 15
+        spinner_center = (indicator_x + indicator_width // 2, indicator_y + indicator_height + 25)
+        
+        # Draw spinner background
+        spinner_bg = pygame.Surface((spinner_radius * 2 + 10, spinner_radius * 2 + 10), pygame.SRCALPHA)
+        spinner_bg.fill((30, 30, 30, 180))
+        pygame.draw.circle(spinner_bg, self.GOLD, (spinner_radius + 5, spinner_radius + 5), spinner_radius + 5, 1)
+        spinner_bg_rect = spinner_bg.get_rect(center=spinner_center)
+        self.screen.blit(spinner_bg, spinner_bg_rect)
+        
+        # Draw spinning dots
+        for i in range(8):
+            dot_angle = (current_time / 100) + (i * math.pi / 4)
+            dot_x = spinner_center[0] + int(spinner_radius * math.cos(dot_angle))
+            dot_y = spinner_center[1] + int(spinner_radius * math.sin(dot_angle))
+            
+            # Fade the dots based on their position in the rotation
+            alpha = 255 - (i * 30)
+            alpha = max(50, min(255, alpha))
+            
+            # Draw glow
+            glow_surf = pygame.Surface((10, 10), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf, (self.GOLD[0], self.GOLD[1], self.GOLD[2], 50), (5, 5), 5)
+            self.screen.blit(glow_surf, (dot_x - 5, dot_y - 5))
+            
+            # Draw dot
+            pygame.draw.circle(self.screen, self.GOLD, (dot_x, dot_y), 3)
     
     def _draw_board(self):
         """Draw the game board with premium styling"""
-        # Draw the board background with subtle gradient
-        board_width = self.square_size * self.board_size
-        board_height = self.square_size * self.board_size
+        # Calculate board size and position (centered)
+        board_width = self.board_size * self.square_size
+        board_height = board_width
         
-        # Create a surface for the board background
-        board_surface = pygame.Surface((board_width + 20, board_height + 20))
+        # Calculate outer frame for shadow effect
+        shadow_offset = 8
+        outer_rect = pygame.Rect(
+            self.board_left - 25 + shadow_offset, 
+            self.board_top - 25 + shadow_offset, 
+            board_width + 50, 
+            board_height + 50
+        )
+        pygame.draw.rect(self.screen, (20, 20, 20, 150), outer_rect, border_radius=5)
         
-        # Draw gradient background
-        for y in range(board_height + 20):
-            # Gradient from dark gray to light gray
-            color_value = 230 + (y / (board_height + 20)) * 15
-            pygame.draw.line(board_surface, (color_value, color_value, color_value), 
-                            (0, y), (board_width + 20, y))
+        # Draw board background with gradient effect
+        board_bg_rect = pygame.Rect(
+            self.board_left - 25, 
+            self.board_top - 25, 
+            board_width + 50, 
+            board_height + 50
+        )
         
-        # Draw the board outline
-        board_rect = pygame.Rect(0, 0, board_width + 10, board_height + 10)
-        pygame.draw.rect(board_surface, self.BLACK, board_rect, 5)
+        # Create a surface for gradient background
+        s = pygame.Surface((board_bg_rect.width, board_bg_rect.height))
+        for y in range(board_bg_rect.height):
+            # Custom gradient from dark to medium gray
+            color_val = 50 + int(y / board_bg_rect.height * 30)
+            pygame.draw.line(s, (color_val, color_val, color_val + 10), 
+                            (0, y), (board_bg_rect.width, y))
         
-        # Add board shadow
-        self.screen.blit(board_surface, (self.board_left - 10, self.board_top - 10))
+        # Apply the gradient surface
+        self.screen.blit(s, board_bg_rect)
         
-        # Draw the actual playing surface
-        play_surface = pygame.Surface((board_width, board_height))
-        play_surface.fill(self.BOARD_BG)
-        self.screen.blit(play_surface, (self.board_left, self.board_top))
+        # Add decorative corners to the frame
+        corner_size = 15
+        # Top-left corner
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.left, board_bg_rect.top + corner_size),
+                        (board_bg_rect.left, board_bg_rect.top), 3)
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.left, board_bg_rect.top),
+                        (board_bg_rect.left + corner_size, board_bg_rect.top), 3)
         
-        # Draw the grid lines
-        for i in range(self.board_size + 1):
+        # Top-right corner
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.right - corner_size, board_bg_rect.top),
+                        (board_bg_rect.right, board_bg_rect.top), 3)
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.right, board_bg_rect.top),
+                        (board_bg_rect.right, board_bg_rect.top + corner_size), 3)
+        
+        # Bottom-left corner
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.left, board_bg_rect.bottom - corner_size),
+                        (board_bg_rect.left, board_bg_rect.bottom), 3)
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.left, board_bg_rect.bottom),
+                        (board_bg_rect.left + corner_size, board_bg_rect.bottom), 3)
+        
+        # Bottom-right corner
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.right - corner_size, board_bg_rect.bottom),
+                        (board_bg_rect.right, board_bg_rect.bottom), 3)
+        pygame.draw.line(self.screen, self.GOLD, 
+                        (board_bg_rect.right, board_bg_rect.bottom),
+                        (board_bg_rect.right, board_bg_rect.bottom - corner_size), 3)
+        
+        # Add texture pattern to the board background
+        texture_alpha = 15
+        # Float değerlerini int'e dönüştürerek range'de kullanılabilir hale getir
+        board_width_int = int(board_width)
+        board_height_int = int(board_height)
+        
+        for i in range(0, board_width_int, 10):
+            for j in range(0, board_height_int, 10):
+                if (i + j) % 20 == 0:
+                    s = pygame.Surface((3, 3), pygame.SRCALPHA)
+                    s.fill((255, 255, 255, texture_alpha))
+                    self.screen.blit(s, (self.board_left - 15 + i, self.board_top - 15 + j))
+        
+        # Draw the actual board surface
+        board_rect = pygame.Rect(
+            self.board_left, 
+            self.board_top, 
+            board_width, 
+            board_height
+        )
+        pygame.draw.rect(self.screen, self.BOARD_BG, board_rect)
+        pygame.draw.rect(self.screen, self.DARK_GRAY, board_rect, 2)
+        
+        # Draw grid lines with subtle gradient
+        for i in range(1, self.board_size):
+            # Calculate line color based on position (subtle gradient)
+            line_value = 100 + int(i / self.board_size * 50)
+            line_color = (line_value, line_value, line_value)
+            line_width = 1
+            
             # Vertical lines
-            pygame.draw.line(
-                self.screen, 
-                self.BOARD_LINES, 
-                (self.board_left + i * self.square_size, self.board_top),
-                (self.board_left + i * self.square_size, self.board_top + board_height),
-                1
-            )
+            start_pos = (self.board_left + i * self.square_size, self.board_top)
+            end_pos = (self.board_left + i * self.square_size, self.board_top + board_height)
+            pygame.draw.line(self.screen, line_color, start_pos, end_pos, line_width)
+            
             # Horizontal lines
-            pygame.draw.line(
-                self.screen, 
-                self.BOARD_LINES, 
-                (self.board_left, self.board_top + i * self.square_size),
-                (self.board_left + board_width, self.board_top + i * self.square_size),
-                1
-            )
+            start_pos = (self.board_left, self.board_top + i * self.square_size)
+            end_pos = (self.board_left + board_width, self.board_top + i * self.square_size)
+            pygame.draw.line(self.screen, line_color, start_pos, end_pos, line_width)
         
-        # Draw accent marks at grid intersections
-        for i in range(self.board_size + 1):
-            for j in range(self.board_size + 1):
+        # Draw coordinate markers with style
+        for i in range(self.board_size):
+            # Column markers (numbers)
+            text = self.small_font.render(str(i), True, self.SILVER)
+            text_rect = text.get_rect(center=(
+                self.board_left + i * self.square_size + self.square_size // 2,
+                self.board_top - 15
+            ))
+            self.screen.blit(text, text_rect)
+            
+            # Row markers (letters)
+            text = self.small_font.render(chr(65 + i), True, self.SILVER)
+            text_rect = text.get_rect(center=(
+                self.board_left - 15,
+                self.board_top + i * self.square_size + self.square_size // 2
+            ))
+            self.screen.blit(text, text_rect)
+        
+        # Add grid intersection dot highlights at specific points
+        for i in range(1, self.board_size, 2):
+            for j in range(1, self.board_size, 2):
                 x = self.board_left + i * self.square_size
                 y = self.board_top + j * self.square_size
-                
-                # Draw small dot at each intersection
-                pygame.draw.circle(self.screen, self.DARK_GRAY, (x, y), 2)
-                
-        # Draw special markers at key positions (e.g., center, corners)
-        center_x = self.board_left + (self.board_size // 2) * self.square_size
-        center_y = self.board_top + (self.board_size // 2) * self.square_size
-        pygame.draw.circle(self.screen, self.GOLD, (center_x, center_y), 4)
-        
-        # Draw corner markers
-        corner_positions = [
-            (self.board_left, self.board_top),
-            (self.board_left + board_width, self.board_top),
-            (self.board_left, self.board_top + board_height),
-            (self.board_left + board_width, self.board_top + board_height)
-        ]
-        
-        for pos in corner_positions:
-            pygame.draw.circle(self.screen, self.DARK_GRAY, pos, 4)
+                pygame.draw.circle(self.screen, self.GOLD, (x, y), 2)
     
     def _draw_navigation_buttons(self):
         """Draw navigation buttons (menu, restart, exit)"""
@@ -899,8 +1123,14 @@ class AblukaGUI:
             
         mouse_x, mouse_y = pygame.mouse.get_pos()
         
+        # Position buttons at the top right corner
+        button_width = 80
+        button_height = 30
+        button_spacing = 10
+        button_top = 10
+        
         # Menu button
-        menu_rect = pygame.Rect(self.width - 280, 20, 80, 30)
+        menu_rect = pygame.Rect(self.width - 3*button_width - 2*button_spacing - 20, button_top, button_width, button_height)
         menu_color = self.BUTTON_HOVER if menu_rect.collidepoint(mouse_x, mouse_y) else self.BUTTON_COLOR
         pygame.draw.rect(self.screen, menu_color, menu_rect)
         pygame.draw.rect(self.screen, self.BLACK, menu_rect, 2)
@@ -910,7 +1140,7 @@ class AblukaGUI:
         self.screen.blit(menu_text, menu_text_rect)
         
         # Restart button
-        restart_rect = pygame.Rect(self.width - 180, 20, 80, 30)
+        restart_rect = pygame.Rect(self.width - 2*button_width - button_spacing - 20, button_top, button_width, button_height)
         restart_color = self.BUTTON_HOVER if restart_rect.collidepoint(mouse_x, mouse_y) else self.BUTTON_COLOR
         pygame.draw.rect(self.screen, restart_color, restart_rect)
         pygame.draw.rect(self.screen, self.BLACK, restart_rect, 2)
@@ -920,7 +1150,7 @@ class AblukaGUI:
         self.screen.blit(restart_text, restart_text_rect)
         
         # Exit button
-        exit_rect = pygame.Rect(self.width - 80, 20, 80, 30)
+        exit_rect = pygame.Rect(self.width - button_width - 20, button_top, button_width, button_height)
         exit_color = self.BUTTON_HOVER if exit_rect.collidepoint(mouse_x, mouse_y) else self.BUTTON_COLOR
         pygame.draw.rect(self.screen, exit_color, exit_rect)
         pygame.draw.rect(self.screen, self.BLACK, exit_rect, 2)
@@ -990,6 +1220,12 @@ class AblukaGUI:
         winner_rect = winner_text.get_rect(center=(self.width // 2, self.height // 2))
         self.screen.blit(winner_text, winner_rect)
         
+        # AI Öğrenme istatistikleri (eğer varsa)
+        if self.mode == 'human_vs_ai' and self.difficulty == 'hard' and self.ai_player and hasattr(self.ai_player, 'get_learning_stats'):
+            learning_stats = self.ai_player.get_learning_stats()
+            if learning_stats.get("enabled", False):
+                self._draw_game_over_learning_stats(learning_stats)
+        
         mouse_x, mouse_y = pygame.mouse.get_pos()
         
         # Draw buttons with improved styling
@@ -1030,73 +1266,157 @@ class AblukaGUI:
             btn_text_rect = btn_text.get_rect(center=rect.center)
             self.screen.blit(btn_text, btn_text_rect)
     
+    def _draw_game_over_learning_stats(self, learning_stats):
+        """Oyun sonu ekranında öğrenme istatistiklerini gösteren panel"""
+        # Panel pozisyonu ve boyutu - ana panelin altında
+        panel_width = 400
+        panel_height = 120
+        panel_x = self.width // 2 - panel_width // 2
+        panel_y = self.height // 2 + 100  # Ana panelin altında
+        
+        # Arkaplan paneli
+        s = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        s.fill((30, 30, 40, 200))  # Biraz daha koyu
+        self.screen.blit(s, (panel_x, panel_y))
+        pygame.draw.rect(self.screen, self.SILVER, (panel_x, panel_y, panel_width, panel_height), 2)
+        
+        # Başlık
+        title_text = self.font.render("Makine Öğrenimi Sonuçları", True, self.GOLD)
+        title_rect = title_text.get_rect(center=(panel_x + panel_width // 2, panel_y + 20))
+        self.screen.blit(title_text, title_rect)
+        
+        # Ayırıcı çizgi
+        pygame.draw.line(self.screen, self.SILVER, 
+                       (panel_x + 20, panel_y + 40), 
+                       (panel_x + panel_width - 20, panel_y + 40), 1)
+        
+        # İstatistikler
+        col1_x = panel_x + 30
+        col2_x = panel_x + panel_width // 2 + 20
+        y_offset = panel_y + 55
+        line_height = 22
+        
+        # Sol kolon istatistikleri
+        stats_text = self.small_font.render(f"Toplam Durum Sayısı: {learning_stats['total_states']}", True, self.WHITE)
+        self.screen.blit(stats_text, (col1_x, y_offset))
+        
+        stats_text = self.small_font.render(f"Bu Oyundaki Durumlar: {learning_stats['current_game_states']}", True, self.WHITE)
+        self.screen.blit(stats_text, (col1_x, y_offset + line_height))
+        
+        stats_text = self.small_font.render(f"Son Oyunda Öğrenilen: {len(self.ai_player.q_table) - learning_stats['total_states']}", True, self.WHITE)
+        self.screen.blit(stats_text, (col1_x, y_offset + line_height * 2))
+        
+        # Sağ kolon istatistikleri
+        stats_text = self.small_font.render(f"Öğrenme Oranı: {learning_stats['learning_rate']:.2f}", True, self.WHITE)
+        self.screen.blit(stats_text, (col2_x, y_offset))
+        
+        stats_text = self.small_font.render(f"Keşif Oranı: {learning_stats['exploration_rate']:.2f}", True, self.WHITE)
+        self.screen.blit(stats_text, (col2_x, y_offset + line_height))
+        
+        # Hafıza bilgisini göster
+        if hasattr(self.ai_player, 'memory_file'):
+            memory_text = f"Hafıza: {self.ai_player.memory_file}"
+            stats_text = self.small_font.render(memory_text, True, self.SILVER)
+            self.screen.blit(stats_text, (col2_x, y_offset + line_height * 2))
+    
     def _draw_obstacle_stacks(self):
         """Draw stacks of red obstacle pieces on sides of the board"""
-        # Calculate positions for the obstacle stacks
-        left_stack_x = self.board_left - self.square_size - 10
-        right_stack_x = self.board_left + self.board_size * self.square_size + 10
-        stack_y = self.board_top + (self.board_size * self.square_size - 200) // 2
+        # Calculate positions for the obstacle stacks - move them further from the board
+        stack_width = self.square_size - 5
+        stack_height = 300
         
-        # Draw outlines for obstacle stacks
-        stack_rect_left = pygame.Rect(left_stack_x, stack_y, self.square_size, 200)
-        stack_rect_right = pygame.Rect(right_stack_x, stack_y, self.square_size, 200)
+        # Yanlardaki engel pozisyonları - daha da dışa taşı
+        left_stack_x = 10  # Daha da sol
+        right_stack_x = self.width - stack_width - 10  # Daha da sağ
         
-        pygame.draw.rect(self.screen, self.BLACK, stack_rect_left, 2)
-        pygame.draw.rect(self.screen, self.WHITE, stack_rect_left, 1)  # Inner border
-        pygame.draw.rect(self.screen, self.BLACK, stack_rect_right, 2)
-        pygame.draw.rect(self.screen, self.WHITE, stack_rect_right, 1)  # Inner border
+        # Stack height should be centered but not exceed the board bottom
+        stack_y = max(130, (self.height - stack_height) // 2)  # Keep distance from top status panel
         
-        # Add stack labels
-        black_label = self.small_font.render("Siyah", True, self.BLACK)
-        white_label = self.small_font.render("Beyaz", True, self.BLACK)
+        # Draw stylish panels for obstacle stacks
+        for stack_x, player, count in [
+            (left_stack_x, 'B', self.black_obstacles),
+            (right_stack_x, 'W', self.white_obstacles)
+        ]:
+            # Draw panel background with gradient
+            panel = pygame.Surface((stack_width, stack_height))
+            for y in range(stack_height):
+                color_val = 30 + int(y / stack_height * 20)
+                pygame.draw.line(panel, (color_val, color_val, color_val + 5), 
+                               (0, y), (stack_width, y))
+            self.screen.blit(panel, (stack_x, stack_y))
+            
+            # Draw panel border
+            pygame.draw.rect(self.screen, self.GOLD, (stack_x, stack_y, stack_width, stack_height), 2)
+            pygame.draw.rect(self.screen, self.DARK_GRAY, (stack_x + 2, stack_y + 2, stack_width - 4, stack_height - 4), 1)
+            
+            # Player label at top
+            label_text = "Siyah" if player == 'B' else "Beyaz"
+            label = self.font.render(label_text, True, self.WHITE)
+            label_rect = label.get_rect(center=(stack_x + stack_width // 2, stack_y + 20))
+            
+            # Draw label with shadow
+            label_shadow = self.font.render(label_text, True, self.BLACK)
+            self.screen.blit(label_shadow, (label_rect.x + 1, label_rect.y + 1))
+            self.screen.blit(label, label_rect)
+            
+            # Draw count at bottom
+            count_text = f"{count}"
+            count_label = self.big_font.render(count_text, True, self.RED)
+            count_rect = count_label.get_rect(center=(stack_x + stack_width // 2, stack_y + stack_height - 30))
+            
+            # Draw count with glow effect
+            glow_surf = pygame.Surface((count_label.get_width() + 10, count_label.get_height() + 10), pygame.SRCALPHA)
+            pygame.draw.rect(glow_surf, (255, 100, 100, 30), (0, 0, glow_surf.get_width(), glow_surf.get_height()))
+            glow_rect = glow_surf.get_rect(center=count_rect.center)
+            self.screen.blit(glow_surf, glow_rect)
+            self.screen.blit(count_label, count_rect)
+            
+            # Draw obstacles visually
+            max_display = 15
+            display_count = min(max_display, count)
+            obstacle_height = 12
+            spacing = (stack_height - 100) // max(max_display, 1)
+            
+            for i in range(display_count):
+                y_pos = stack_y + 50 + (i * spacing)
+                
+                # Obstacle rect
+                obs_width = stack_width - 14
+                obs_x = stack_x + 7
+                
+                # Draw obstacle with gradient
+                obs_surf = pygame.Surface((obs_width, obstacle_height))
+                for y in range(obstacle_height):
+                    red_val = 180 + int(y / obstacle_height * 75)
+                    pygame.draw.line(obs_surf, (red_val, 20, 20), 
+                                   (0, y), (obs_width, y))
+                
+                self.screen.blit(obs_surf, (obs_x, y_pos))
+                pygame.draw.rect(self.screen, (100, 0, 0), (obs_x, y_pos, obs_width, obstacle_height), 1)
+                
+                # Add highlight
+                highlight_width = obs_width // 3
+                highlight_height = obstacle_height // 2
+                highlight_surf = pygame.Surface((highlight_width, highlight_height), pygame.SRCALPHA)
+                highlight_surf.fill((255, 150, 150, 100))
+                self.screen.blit(highlight_surf, (obs_x + 2, y_pos + 1))
         
-        self.screen.blit(black_label, (left_stack_x + 5, stack_y - 25))
-        self.screen.blit(white_label, (right_stack_x + 5, stack_y - 25))
+        # "Engel Taşları" başlığını çiz - tablonun alt kısmına
+        # Tahtanın altında görünecek şekilde ama daha yukarıda
+        board_bottom = self.board_top + (self.board_size * self.square_size)
+        title_y = board_bottom + 25  # Tahtanın altında ama yeterince yukarıda
         
-        # Draw obstacles on left side for BLACK player
-        for i in range(min(10, self.black_obstacles)):
-            y_offset = stack_y + 10 + (i * 15)
-            rect = pygame.Rect(
-                left_stack_x + 5,
-                y_offset,
-                self.square_size - 10,
-                10
-            )
-            pygame.draw.rect(self.screen, self.RED, rect)
-            pygame.draw.rect(self.screen, (150, 0, 0), rect, 1)  # Border
+        title_text = self.font.render("Engel Taşları", True, self.WHITE)
+        title_rect = title_text.get_rect(center=(self.width // 2, title_y))
         
-        # If more than 10 obstacles, show numbers
-        if self.black_obstacles > 10:
-            remaining_text = self.small_font.render(f"+{self.black_obstacles - 10}", True, self.BLACK)
-            self.screen.blit(remaining_text, (left_stack_x + 10, stack_y + 170))
+        # Draw title background
+        title_bg = pygame.Surface((title_text.get_width() + 20, title_text.get_height() + 10), pygame.SRCALPHA)
+        title_bg.fill((30, 30, 30, 180))
+        title_bg_rect = title_bg.get_rect(center=title_rect.center)
+        pygame.draw.rect(title_bg, self.GOLD, (0, 0, title_bg.get_width(), title_bg.get_height()), 2)
         
-        # Draw obstacles on right side for WHITE player
-        for i in range(min(10, self.white_obstacles)):
-            y_offset = stack_y + 10 + (i * 15)
-            rect = pygame.Rect(
-                right_stack_x + 5,
-                y_offset,
-                self.square_size - 10,
-                10
-            )
-            pygame.draw.rect(self.screen, self.RED, rect)
-            pygame.draw.rect(self.screen, (150, 0, 0), rect, 1)  # Border
-        
-        # If more than 10 obstacles, show numbers
-        if self.white_obstacles > 10:
-            remaining_text = self.small_font.render(f"+{self.white_obstacles - 10}", True, self.BLACK)
-            self.screen.blit(remaining_text, (right_stack_x + 10, stack_y + 170))
-        
-        # Draw obstacle count text
-        count_text = self.small_font.render(f"Engel Taşları", True, self.BLACK)
-        self.screen.blit(count_text, (self.width // 2 - 45, self.height - 60))
-        
-        # Draw individual counts
-        black_count = self.small_font.render(f"Siyah: {self.black_obstacles}", True, self.BLACK)
-        white_count = self.small_font.render(f"Beyaz: {self.white_obstacles}", True, self.BLACK)
-        
-        self.screen.blit(black_count, (self.width // 2 - 100, self.height - 30))
-        self.screen.blit(white_count, (self.width // 2 + 20, self.height - 30))
+        self.screen.blit(title_bg, title_bg_rect)
+        self.screen.blit(title_text, title_rect)
     
     def _draw_pieces_and_obstacles(self):
         """Draw the pieces and obstacles with premium styling"""
@@ -1351,104 +1671,121 @@ class AblukaGUI:
             self.screen.blit(glow_surface, (glow_x, glow_y))
     
     def _draw_status(self):
-        """Draw status and winner messages"""
-        # Status message
-        status_text = self.font.render(self.status_message, True, self.BLACK)
-        self.screen.blit(status_text, (20, 20))
+        """Draw status and winner messages with stylish panel"""
+        # Ana bilgi paneli - daha kompakt
+        main_panel_width = self.width - 340  # Narrower panel to avoid buttons
+        main_panel_height = 32  # Daha alçak
+        main_panel_x = 20
+        main_panel_y = 10
         
-        # Current phase if game is not over
-        if not self.game.game_over:
-            phase_text = self.small_font.render(
-                "Engel yerleştirme aşaması" if self.obstacle_placement_phase else "Taş hareket aşaması", 
-                True, self.BLACK
-            )
-            self.screen.blit(phase_text, (20, self.height - 30))
-            
-            # Current player
-            player_text = self.small_font.render(
-                f"Sıra: {'Siyah' if self.game.current_player == 'B' else 'Beyaz'} oyuncu", 
-                True, self.BLACK
-            )
-            self.screen.blit(player_text, (self.width - 300, self.height - 30))
+        # İstatistikler için ince bir border ile şık bir panel
+        s = pygame.Surface((main_panel_width, main_panel_height), pygame.SRCALPHA)
+        s.fill((20, 20, 30, 200))  # Daha koyu ve saydam
+        self.screen.blit(s, (main_panel_x, main_panel_y))
         
-        # Add indicator if playing against AI
+        # Altın kenarlık
+        pygame.draw.rect(self.screen, self.GOLD, (main_panel_x, main_panel_y, main_panel_width, main_panel_height), 2)
+        
+        # Tek panelde tüm bilgileri göster
         if self.mode == 'human_vs_ai':
+            # İki ayırıcı çizgi
+            pygame.draw.line(self.screen, self.SILVER, 
+                            (main_panel_x + main_panel_width * 0.33, main_panel_y + 5), 
+                            (main_panel_x + main_panel_width * 0.33, main_panel_y + main_panel_height - 5), 1)
+            pygame.draw.line(self.screen, self.SILVER, 
+                            (main_panel_x + main_panel_width * 0.66, main_panel_y + 5), 
+                            (main_panel_x + main_panel_width * 0.66, main_panel_y + main_panel_height - 5), 1)
+            
+            # Durum mesajı - sol bölüm
+            status_text = self.small_font.render(self.status_message, True, self.WHITE)
+            status_rect = status_text.get_rect(midleft=(main_panel_x + 10, main_panel_y + main_panel_height // 2))
+            self.screen.blit(status_text, status_rect)
+            
+            # İnsan oyuncu bilgisi - orta bölüm
             human_text = self.small_font.render(
                 f"Siz: {'Siyah' if self.human_piece == 'B' else 'Beyaz'} taşsınız", 
-                True, self.BLACK
+                True, self.WHITE
             )
-            self.screen.blit(human_text, (20, 60))
+            human_rect = human_text.get_rect(center=(main_panel_x + main_panel_width * 0.5, main_panel_y + main_panel_height // 2))
+            self.screen.blit(human_text, human_rect)
+            
+            # Oyun fazı - sağ bölüm
+            if not self.game.game_over:
+                phase_text = self.small_font.render(
+                    "Engel yerleştirme" if self.obstacle_placement_phase else "Taş hareket", 
+                    True, self.WHITE
+                )
+                phase_rect = phase_text.get_rect(midright=(main_panel_x + main_panel_width - 10, main_panel_y + main_panel_height // 2))
+                self.screen.blit(phase_text, phase_rect)
+        else:
+            # İnsan vs İnsan modu
+            # Ayırıcı çizgi
+            pygame.draw.line(self.screen, self.SILVER, 
+                           (main_panel_x + main_panel_width // 2, main_panel_y + 5), 
+                           (main_panel_x + main_panel_width // 2, main_panel_y + main_panel_height - 5), 1)
+            
+            # Durum mesajı - sol bölüm
+            status_text = self.small_font.render(self.status_message, True, self.WHITE)
+            status_rect = status_text.get_rect(midleft=(main_panel_x + 10, main_panel_y + main_panel_height // 2))
+            self.screen.blit(status_text, status_rect)
+            
+            # Oyun fazı - sağ bölüm
+            if not self.game.game_over:
+                phase_text = self.small_font.render(
+                    "Engel yerleştirme" if self.obstacle_placement_phase else "Taş hareket", 
+                    True, self.WHITE
+                )
+                phase_rect = phase_text.get_rect(midright=(main_panel_x + main_panel_width - 10, main_panel_y + main_panel_height // 2))
+                self.screen.blit(phase_text, phase_rect)
     
     def _draw_fade_message(self):
-        """Draw a message that fades out over time"""
-        if self.fade_message:
-            # Calculate fade alpha based on time
-            current_time = pygame.time.get_ticks()
-            elapsed = (current_time - self.fade_timer) / 1000.0  # seconds
-            
-            if elapsed < self.fade_duration:
-                # Start fully opaque and fade out
-                alpha = 255 * (1 - elapsed / self.fade_duration)
-                
-                # Create text surface
-                message_text = self.big_font.render(self.fade_message, True, self.BLACK)
-                message_rect = message_text.get_rect(center=(self.width // 2, self.height // 2))
-                
-                # Determine if this is an AI message (contains emoji)
-                is_ai_message = any(char in self.fade_message for char in "😊😄😁🙂😎🤔🧐🤨🧠💭😟😬😨😓😰🤩😆🎉👏🎊😏😌🙄😤💪😮😲😱😯😵")
-                
-                if is_ai_message:
-                    # For AI messages, show at the top with speech bubble style
-                    message_rect = message_text.get_rect(center=(self.width // 2, 100))
-                    
-                    # Create a speech bubble
-                    bubble_padding = 20
-                    bubble_rect = pygame.Rect(
-                        message_rect.x - bubble_padding,
-                        message_rect.y - bubble_padding,
-                        message_rect.width + bubble_padding * 2,
-                        message_rect.height + bubble_padding * 2
-                    )
-                    
-                    # Draw bubble background
-                    s = pygame.Surface((bubble_rect.width, bubble_rect.height), pygame.SRCALPHA)
-                    s.fill((240, 240, 255, int(alpha * 0.9)))
-                    pygame.draw.rect(s, (100, 100, 200, int(alpha * 0.8)), 
-                                    pygame.Rect(0, 0, bubble_rect.width, bubble_rect.height), 3)
-                    
-                    # Add a pointer to indicate it's from the AI
-                    pointer_points = [
-                        (bubble_rect.width // 2 - 10, bubble_rect.height),
-                        (bubble_rect.width // 2, bubble_rect.height + 15),
-                        (bubble_rect.width // 2 + 10, bubble_rect.height)
-                    ]
-                    pygame.draw.polygon(s, (240, 240, 255, int(alpha * 0.9)), pointer_points)
-                    pygame.draw.polygon(s, (100, 100, 200, int(alpha * 0.8)), pointer_points, 2)
-                    
-                    self.screen.blit(s, (bubble_rect.x, bubble_rect.y))
-                    
-                    # Add a pulsating effect for AI messages
-                    pulse = (1 + math.sin(pygame.time.get_ticks() * 0.005)) / 2
-                    pulse_scale = 1.0 + pulse * 0.05
-                    
-                    # Scale the message text slightly
-                    scaled_width = int(message_text.get_width() * pulse_scale)
-                    scaled_height = int(message_text.get_height() * pulse_scale)
-                    scaled_text = pygame.transform.scale(message_text, (scaled_width, scaled_height))
-                    scaled_text.set_alpha(int(alpha))
-                    
-                    scaled_rect = scaled_text.get_rect(center=message_rect.center)
-                    self.screen.blit(scaled_text, scaled_rect)
-                else:
-                    # Standard message display (non-AI messages)
-                    # Create a surface with alpha for the message
-                    s = pygame.Surface((message_text.get_width() + 20, message_text.get_height() + 20), pygame.SRCALPHA)
-                    s.fill((255, 255, 255, int(alpha * 0.7)))  # Semi-transparent white background
-                    self.screen.blit(s, (message_rect.x - 10, message_rect.y - 10))
-                    
-                    # Adjust text alpha
-                    message_text.set_alpha(int(alpha))
-                    self.screen.blit(message_text, message_rect)
+        """Draw fading message that appears temporarily"""
+        current_time = pygame.time.get_ticks()
+        elapsed = (current_time - self.fade_timer) / 1000.0
+        
+        if elapsed < self.fade_duration:
+            # Calculate alpha based on elapsed time
+            if elapsed < self.fade_duration * 0.3:
+                # Fade in
+                alpha = int(255 * (elapsed / (self.fade_duration * 0.3)))
+            elif elapsed > self.fade_duration * 0.7:
+                # Fade out
+                alpha = int(255 * (1 - (elapsed - self.fade_duration * 0.7) / (self.fade_duration * 0.3)))
             else:
-                # Message duration has passed
-                self.fade_message = None 
+                # Stay fully visible
+                alpha = 255
+            
+            # Create a semi-transparent panel for the message
+            panel_width = min(500, self.width - 40)
+            panel_height = 60
+            panel_x = (self.width - panel_width) // 2
+            panel_y = self.height - panel_height - 20
+            
+            s = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+            s.fill((30, 30, 30, min(200, alpha)))
+            self.screen.blit(s, (panel_x, panel_y))
+            
+            # Draw golden border that pulses
+            pulse_intensity = math.sin(current_time / 200) * 0.5 + 0.5  # 0.0 to 1.0
+            border_color = (
+                self.GOLD[0],
+                int(self.GOLD[1] * (0.7 + 0.3 * pulse_intensity)),
+                int(self.GOLD[2] * (0.7 + 0.3 * pulse_intensity)),
+                alpha
+            )
+            pygame.draw.rect(self.screen, border_color, (panel_x, panel_y, panel_width, panel_height), 2)
+            
+            # Draw the message text with shadow effect
+            text = self.font.render(self.fade_message, True, (255, 255, 255, alpha))
+            text_rect = text.get_rect(center=(self.width // 2, panel_y + panel_height // 2))
+            
+            # Draw text shadow
+            shadow_surface = self.font.render(self.fade_message, True, (0, 0, 0, alpha))
+            shadow_rect = shadow_surface.get_rect(center=(text_rect.centerx + 2, text_rect.centery + 2))
+            self.screen.blit(shadow_surface, shadow_rect)
+            
+            # Draw actual text
+            self.screen.blit(text, text_rect)
+        else:
+            # Message duration expired
+            self.fade_message = None

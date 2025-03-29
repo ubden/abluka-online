@@ -1,0 +1,153 @@
+Abluka Oyunu - 2025-03-29 01:14:55
+AI Zorluk: normal
+-----------------------------------------------------------------------------
+
+Hamle #1
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 2)
+Engel: (5, 2)
+Strateji: Normal mod: Minimax arama
+Tahta Durumu:
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . W . . .
+-----------------------------------------------------------------------------
+
+Hamle #2
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 3)
+Engel: (1, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %65.0
+Tahta Durumu:
+. . B . . . .
+. . X . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . X W . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #3
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 1)
+Engel: (4, 2)
+Strateji: Normal mod: Minimax arama
+Tahta Durumu:
+. . B . . . .
+. . X . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . X W . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #4
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (1, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. B . . . . .
+. X X . . . .
+. . . . . . .
+. . . . . . .
+. . X W . . .
+. . X . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #5
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 0)
+Engel: (3, 3)
+Strateji: Normal mod: Minimax arama
+Tahta Durumu:
+. B . . . . .
+. X X . . . .
+. . . . . . .
+. . . . . . .
+. . X W . . .
+. . X . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #6
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (1, 0)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %90.0
+Tahta Durumu:
+B . . . . . .
+X X X . . . .
+. . . . . . .
+. . W X . . .
+. . X . . . .
+. . X . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #7
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 1)
+Engel: (2, 1)
+Strateji: Normal mod: Minimax arama
+Tahta Durumu:
+B . . . . . .
+X X X . . . .
+. . . . . . .
+. . W X . . .
+. . X . . . .
+. . X . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #8
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 3)
+Engel: (0, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %90.0
+Tahta Durumu:
+. B X . . . .
+X X X . . . .
+. X . W . . .
+. . . X . . .
+. . X . . . .
+. . X . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #9
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 0)
+Engel: (1, 3)
+Strateji: Normal mod: Minimax arama
+Tahta Durumu:
+. B X . . . .
+X X X . . . .
+. X . W . . .
+. . . X . . .
+. . X . . . .
+. . X . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #10
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 4)
+Engel: (0, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %95.0
+Tahta Durumu:
+B X X . . . .
+X X X X . . .
+. X . . W . .
+. . . X . . .
+. . X . . . .
+. . X . . . .
+. . . . . . .
+-----------------------------------------------------------------------------

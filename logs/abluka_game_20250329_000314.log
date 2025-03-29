@@ -1,0 +1,273 @@
+Abluka Oyunu - 2025-03-29 00:03:14
+AI Zorluk: hard
+-----------------------------------------------------------------------------
+
+Hamle #1
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 2)
+Engel: (5, 3)
+Strateji: Engel iyileştirmesi: Rakibi daha fazla kısıtlama
+Tahta Durumu:
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . W . . .
+-----------------------------------------------------------------------------
+
+Hamle #2
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 4)
+Engel: (1, 2)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . B . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . W . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #3
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 3)
+Engel: (5, 5)
+Strateji: (2,3): Rakibin hareketini 1 kadar kısıtlıyor, Merkeze yakın kontrol
+Tahta Durumu:
+. . B . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . W . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #4
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 4)
+Engel: (1, 3)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . W . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #5
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 4)
+Engel: (3, 4)
+Strateji: (0,4): Rakibin hareketini 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . W . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #6
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (1, 4)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . . B . .
+. . . . . . .
+. . . . . . .
+. . . W . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #7
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 5)
+Engel: (4, 3)
+Strateji: (2,6): Rakibin hareketini 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . . B . .
+. . . . . . .
+. . . . . . .
+. . . W . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #8
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (1, 5)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . . . B .
+. . . . . . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #9
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 6)
+Engel: (0, 2)
+Strateji: (0,2): Standart engel pozisyonu
+Tahta Durumu:
+. . . . . B .
+. . . . . . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #10
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (2, 6)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . . . . .
+. . . . . . B
+. . . . . . .
+. . . W . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #11
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 5)
+Engel: (2, 3)
+Strateji: (1,6): Rakibin hareketini 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . . . . .
+. . . . . . B
+. . . . . . .
+. . . W . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #12
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 4)
+Engel: (3, 5)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . W B .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #13
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 6)
+Engel: (2, 5)
+Strateji: (2,5): Rakibin hareketini 1 kadar kısıtlıyor, Kendi hareketlerimi 1 kadar kısıtlıyor
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . . W B .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #14
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (0, 6)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . . . . .
+. . . . . . B
+. . . . . . .
+. . . W . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #15
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 5)
+Engel: (3, 2)
+Strateji: (3,2): Rakibin hareketini 1 kadar kısıtlıyor, Merkeze yakın kontrol
+Tahta Durumu:
+. . . . . . .
+. . . . . . B
+. . . . . . .
+. . . W . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #16
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 2)
+Engel: (0, 4)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . . . B .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #17
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 6)
+Engel: (3, 3)
+Strateji: Rakibi ablukaya alan hamle!
+Tahta Durumu:
+. . . . . B .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . W . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------
+
+Hamle #18
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 1)
+Engel: (0, 5)
+Strateji: İnsan oyuncu hamlesi
+Tahta Durumu:
+. . . . . . .
+. . . . . . B
+. . . . . . .
+. W . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+-----------------------------------------------------------------------------

@@ -1,0 +1,348 @@
+Abluka AI Log - 2025-03-29 14:07:37
+Mod (Difficulty): hard
+------------------------------------------------
+
+Hamle #1
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (1, 3)
+Engel: (5, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . X . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #2
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 2)
+Engel: (0, 2)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.04, Öğrenilen toplam durum: 26)
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . X . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #3
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 3)
+Engel: (4, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %56.7
+Tahta Durumu:
+. . X . . . .
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . X . . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #4
+Oyuncu: AI (W)
+Taş Hamlesi: (4, 1)
+Engel: (1, 2)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.04, Öğrenilen toplam durum: 27)
+Tahta Durumu:
+. . X . . . .
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . X . . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #5
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (3, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. . . . . . .
+. X B . . . .
+. W X . . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #6
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 1)
+Engel: (2, 1)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.06, Öğrenilen toplam durum: 28)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. . . . . . .
+. X B . . . .
+. W X . . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #7
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 1)
+Engel: (4, 0)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %46.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X . . . . .
+. X . . . . .
+X B X . . . .
+. W . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #8
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 2)
+Engel: (3, 0)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.06, Öğrenilen toplam durum: 29)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X . . . . .
+. X . . . . .
+X B X . . . .
+. W . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #9
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (4, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %46.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X . . . . .
+X X B . . . .
+X . X X . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #10
+Oyuncu: AI (W)
+Taş Hamlesi: (6, 3)
+Engel: (4, 1)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.21, Öğrenilen toplam durum: 30)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X . . . . .
+X X B . . . .
+X . X X . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #11
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (5, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X . . . . .
+X X . B . . .
+X X X X . . .
+. . . X X . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #12
+Oyuncu: AI (W)
+Taş Hamlesi: (6, 4)
+Engel: (2, 2)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.31, Öğrenilen toplam durum: 31)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X . . . . .
+X X . B . . .
+X X X X . . .
+. . . X X . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #13
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 4)
+Engel: (4, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . . . .
+X X . . B . .
+X X X X . X .
+. . . X X . .
+. . . . W . .
+------------------------------------------------
+
+Hamle #14
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 5)
+Engel: (4, 6)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.44, Öğrenilen toplam durum: 32)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . . . .
+X X . . B . .
+X X X X . X .
+. . . X X . .
+. . . . W . .
+------------------------------------------------
+
+Hamle #15
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 5)
+Engel: (4, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . . . .
+X X . . . B .
+X X X X X X X
+. . . X X W .
+. . . . . . .
+------------------------------------------------
+
+Hamle #16
+Oyuncu: AI (W)
+Taş Hamlesi: (6, 5)
+Engel: (2, 4)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.42, Öğrenilen toplam durum: 33)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . . . .
+X X . . . B .
+X X X X X X X
+. . . X X W .
+. . . . . . .
+------------------------------------------------
+
+Hamle #17
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 6)
+Engel: (6, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . X . .
+X X . . . . B
+X X X X X X X
+. . . X X . .
+. . . . X W .
+------------------------------------------------
+
+Hamle #18
+Oyuncu: AI (W)
+Taş Hamlesi: (6, 6)
+Engel: (2, 5)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.40, Öğrenilen toplam durum: 34)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . X . .
+X X . . . . B
+X X X X X X X
+. . . X X . .
+. . . . X W .
+------------------------------------------------
+
+Hamle #19
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 5)
+Engel: (6, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %60.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . X X .
+X X . . . B .
+X X X X X X X
+. . . X X . .
+. . . . X X W
+------------------------------------------------
+
+Hamle #20
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 6)
+Engel: (2, 6)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.39, Öğrenilen toplam durum: 35)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . X X .
+X X . . . B .
+X X X X X X X
+. . . X X . .
+. . . . X X W
+------------------------------------------------
+
+Hamle #21
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 4)
+Engel: (5, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %90.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . X X X
+X X . . B . .
+X X X X X X X
+. . . X X X W
+. . . . X X .
+------------------------------------------------
+
+Hamle #22
+Oyuncu: AI (W)
+Taş Hamlesi: (6, 6)
+Engel: (2, 3)
+Strateji: Hard-ML: Öğrenilen bilgileri kullanma (Değer: 0.65, Öğrenilen toplam durum: 36)
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X . X X X
+X X . . B . .
+X X X X X X X
+. . . X X X W
+. . . . X X .
+------------------------------------------------
+
+Hamle #23
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (5, 6)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %95.0
+Tahta Durumu:
+. . X . . . .
+. . X . . . .
+. X X X X X X
+X X . B . . .
+X X X X X X X
+. . . X X X X
+. . . . X X W
+------------------------------------------------

@@ -40,7 +40,10 @@ jobs:
         
     - name: Build executable
       run: |
-        pyinstaller --name "Abluka" --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" run_abluka.py
+        python -m pip list
+        echo "Creating executable..."
+        pyinstaller --name "Abluka" --onefile --windowed --icon=assets/icon.ico --add-data "assets;assets" --optimize=2 --debug=all run_abluka.py
+        echo "Executable created successfully."
         
     - name: Test executable
       run: |
