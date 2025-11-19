@@ -27,7 +27,10 @@ class AIPlayer:
         self.difficulty = difficulty
         self.max_time = float(max_time)  # her hamlede düşünülecek max süre (saniye)
 
-        # Minimax parametreleri - İyileştirilmiş zorluk seviyeleri
+        # Minimax / taktik parametreleri - zorluk seviyesine göre ayar
+        self.lookahead_depth = 0
+        self.max_tactical_candidates = 0
+        self.tactical_weight = 0.0
         if self.difficulty == 'easy':
             self.base_depth = 2  # Daha basit düşünme
             self.max_time = max(self.max_time, 1.5)
@@ -35,6 +38,9 @@ class AIPlayer:
             self.randomness = 0.4  # %40 rastgele hamle
             self.min_safe_moves = 2  # En az 2 hamle kalmalı (daha esnek)
             self.future_turns_check = 1  # 1 tur ilerisini kontrol et
+            self.lookahead_depth = 1
+            self.max_tactical_candidates = 2
+            self.tactical_weight = 0.4
         elif self.difficulty == 'normal':
             self.base_depth = 4  # Orta seviye düşünme
             self.max_time = max(self.max_time, 2.5)
@@ -42,13 +48,19 @@ class AIPlayer:
             self.randomness = 0.15  # %15 rastgele hamle
             self.min_safe_moves = 3  # En az 3 hamle kalmalı (daha esnek)
             self.future_turns_check = 2  # 2 tur ilerisini kontrol et
+            self.lookahead_depth = 3
+            self.max_tactical_candidates = 6
+            self.tactical_weight = 0.85
         else:  # 'hard'
             self.base_depth = 5  # Daha derin düşünme
             self.max_time = max(self.max_time, 3.5)
             self.ml_usage_factor = 1.0  # Tam kapasite ML
-            self.randomness = 0.05  # Çok az rastgele hamle
+            self.randomness = 0.0  # Rakibe taviz yok
             self.min_safe_moves = 3  # En az 3 hamle kalmalı (daha esnek)
             self.future_turns_check = 2  # 2 tur ilerisini kontrol et (3'ten azaltıldı)
+            self.lookahead_depth = 4
+            self.max_tactical_candidates = 8
+            self.tactical_weight = 1.25
 
         # Log / kayıt
         self.log_enabled = True
@@ -491,19 +503,96 @@ class AIPlayer:
             # Son çare: Kolay moda geç
             return self._choose_move_old_normal(board, player, time_limit, start_time)
         
-        # En iyi güvenli hamleyi seç
         safe_moves.sort(key=lambda x: x[2], reverse=True)
-        
-        # %15 ihtimalle iyi hamlelerden rastgele seç
-        if random.random() < self.randomness and len(safe_moves) > 5:
-            top_portion = max(5, int(len(safe_moves) * 0.3))
-            choice = random.choice(safe_moves[:top_portion])
-            self.last_move_reasoning = f"Normal => İyi güvenli hamle (skor: {choice[2]:.0f})"
-            return choice[0], choice[1]
-        
-        best = safe_moves[0]
-        self.last_move_reasoning = f"Normal => En iyi güvenli hamle (skor: {best[2]:.0f})"
-        return best[0], best[1]
+
+        # Taktiğe dayalı kısa minimax ile en iyi hamleyi doğrula
+        tactical_depth = max(1, self.lookahead_depth)
+        tactical_cap = min(len(safe_moves), max(3, self.max_tactical_candidates))
+        evaluated_moves = []
+
+        if tactical_cap > 0:
+            per_candidate_budget = max(0.08, (self.max_time * 0.45) / max(1, tactical_cap))
+            for mv, obs, heur in safe_moves[:tactical_cap]:
+                sim_board = self._simulate_board_after_action(board, player, mv, obs)
+                if not sim_board:
+                    continue
+                tactical_value = self._tactical_lookahead(
+                    sim_board,
+                    player,
+                    tactical_depth,
+                    per_candidate_budget,
+                    maximizing_turn=False
+                )
+                combined = heur + tactical_value * self.tactical_weight
+                evaluated_moves.append((combined, mv, obs, heur, tactical_value))
+
+        scored_moves = evaluated_moves[:]
+        for mv, obs, heur in safe_moves[tactical_cap:]:
+            scored_moves.append((heur, mv, obs, heur, None))
+
+        if not scored_moves:
+            print("[AI-NORMAL] Taktik değerlendirme başarısız, heuristik en iyi hamle seçiliyor.")
+            best = safe_moves[0]
+            self.last_move_reasoning = f"Normal => Heuristik güvenli hamle (skor: {best[2]:.0f})"
+            return best[0], best[1]
+
+        scored_moves.sort(key=lambda x: x[0], reverse=True)
+
+        opponent = ('W' if player == 'B' else 'B')
+        pressure = len(board.get_valid_moves(player)) <= 3 or len(board.get_valid_moves(opponent)) <= 3
+
+        chosen = scored_moves[0]
+        if (not pressure and self.randomness > 0 and len(scored_moves) > 3
+                and random.random() < self.randomness):
+            top_portion = max(3, int(len(scored_moves) * 0.3))
+            chosen = random.choice(scored_moves[:top_portion])
+            choice_score = chosen[0]
+            self.last_move_reasoning = (
+                f"Normal => Taktik varyasyon (skor: {choice_score:.0f})"
+            )
+        else:
+            choice_score = chosen[0]
+            if chosen[4] is not None:
+                self.last_move_reasoning = (
+                    f"Normal => Derin taktik {tactical_depth} (heur {chosen[3]:.0f} + sim {chosen[4]:.0f})"
+                )
+            else:
+                self.last_move_reasoning = (
+                    f"Normal => Heuristik güvenli hamle (skor: {choice_score:.0f})"
+                )
+
+        return chosen[1], chosen[2]
+
+    def _simulate_board_after_action(self, board, player, move, obstacle):
+        """Verilen hamleyi ve engeli uyguladıktan sonraki tahtayı döndür."""
+        sim_board = self._clone_board(board)
+        move_ok = sim_board.move_piece(player, move)
+        place_ok = sim_board.place_obstacle(obstacle)
+        if not move_ok or not place_ok:
+            return None
+        return sim_board
+
+    def _tactical_lookahead(self, board, player, depth, time_budget, maximizing_turn=False):
+        """
+        Kısa süreli derin arama.
+        depth: ileride kaç hamle incelenecek (rakip hamleleri dahil)
+        time_budget: saniye cinsinden tahsis edilmiş süre
+        maximizing_turn: sıradaki oyuncu main_player mı?
+        """
+        if depth <= 0 or board is None:
+            return self._evaluate_board(board, player) if board else -999999
+        budget = max(0.05, time_budget)
+        start = time.time()
+        return self._alpha_beta_minimax(
+            board,
+            depth,
+            maximizing_turn,
+            player,
+            float('-inf'),
+            float('inf'),
+            start,
+            budget
+        )
 
     def _search_best_move(self, board, player, depth, start_time, time_limit):
         best_mv = None
@@ -741,16 +830,54 @@ class AIPlayer:
         
         # Sıralama
         safe_moves.sort(key=lambda x: x[2], reverse=True)
-        
-        if is_explore:
-            # Exploration: En iyi %50'lik dilimden seç
-            self.last_move_reasoning = "ML => Epsilon-greedy güvenli exploration"
-            top_portion = max(3, int(len(safe_moves) * 0.5))
-            best_move, best_obs, best_value, best_state, q_val = random.choice(safe_moves[:top_portion])
-        else:
-            # Exploitation: En iyi güvenli hamle
+
+        tactical_depth = max(2, self.lookahead_depth + 1)
+        tactical_cap = min(len(safe_moves), max(4, self.max_tactical_candidates))
+        per_candidate_budget = max(0.1, (self.max_time * 0.6) / max(1, tactical_cap))
+
+        enriched = []
+        for mv, obs, base_score, nxt_state, q_val in safe_moves[:tactical_cap]:
+            sim_board = self._simulate_board_after_action(board, player, mv, obs)
+            if not sim_board:
+                continue
+            tactical_value = self._tactical_lookahead(
+                sim_board,
+                player,
+                tactical_depth,
+                per_candidate_budget,
+                maximizing_turn=False
+            )
+            total = base_score + tactical_value * (self.tactical_weight + 0.35)
+            enriched.append((total, mv, obs, nxt_state, q_val, tactical_value, base_score))
+
+        if not enriched:
+            print("[AI-ZOR] Taktik değerlendirme yapılamadı, heuristik en iyi hamle kullanılacak.")
             best_move, best_obs, best_value, best_state, q_val = safe_moves[0]
-            self.last_move_reasoning = "ML => Q + heuristic + safety"
+            tactical_component = None
+            total_score = best_value
+            self.last_move_reasoning = "ML => Heuristik fallback"
+        else:
+            enriched.sort(key=lambda x: x[0], reverse=True)
+            if is_explore:
+                self.last_move_reasoning = "ML => Epsilon-greedy güvenli exploration"
+                top_portion = max(3, int(len(enriched) * 0.5))
+                choice = random.choice(enriched[:top_portion])
+            else:
+                choice = enriched[0]
+
+            best_move, best_obs = choice[1], choice[2]
+            best_state, q_val = choice[3], choice[4]
+            tactical_component = choice[5]
+            best_value = choice[6]
+            total_score = choice[0]
+            if tactical_component is not None:
+                self.last_move_reasoning = (
+                    f"ML => Q({q_val:.2f}) + heur {best_value:.0f} + taktik {tactical_component:.0f}"
+                )
+                if total_score > 900:
+                    self.last_move_reasoning += " | kaçış bırakmayan plan"
+            else:
+                self.last_move_reasoning = "ML => Q + heuristic + safety"
         
         # Öğrenme (sadece self-play'de)
         if self.current_state and best_state:
@@ -1383,11 +1510,14 @@ class AIPlayer:
             # Rakip beni en çok sıkıştıran hamleyi yapar
             worst_case_my_moves = len(my_moves)
             worst_obstacle = None
+            worst_move = None
             
-            for opp_move in opp_moves[:5]:  # İlk 5 hamleyi kontrol et
+            for opp_move in opp_moves:
                 temp_b = self._clone_board(test_board)
                 temp_b.move_piece(opponent, opp_move)
-                empties = self._get_empty_positions(temp_b)[:8]
+                empties = self._get_empty_positions(temp_b)
+                if len(empties) > 8:
+                    empties = self._prune_obstacles(temp_b, empties, opponent, 8)
                 
                 for obs in empties:
                     temp_b2 = self._clone_board(temp_b)
@@ -1397,6 +1527,7 @@ class AIPlayer:
                     if future_my_moves < worst_case_my_moves:
                         worst_case_my_moves = future_my_moves
                         worst_obstacle = obs
+                        worst_move = opp_move
                         
                         if worst_case_my_moves == 0:
                             return False, f"Gelecek tur {future_turn + 1}'de abluka riski"
@@ -1406,15 +1537,15 @@ class AIPlayer:
                 return False, f"Gelecek tur {future_turn + 1}'de risk ({worst_case_my_moves} hamle)"
             
             # Bir sonraki tur için tahtayı güncelle
-            if worst_obstacle and opp_moves:
-                test_board = self._clone_board(test_board)
-                # Rakibin en kötü hamlesini yap
-                test_board.move_piece(opponent, opp_moves[0])
+            if worst_obstacle and worst_move:
+                test_board.move_piece(opponent, worst_move)
                 test_board.place_obstacle(worst_obstacle)
                 
                 my_moves = test_board.get_valid_moves(player)
                 if not my_moves:
                     return False, f"Gelecek tur {future_turn + 1}'de abluka"
+            else:
+                break
         
         return True, "Güvenli"
     
