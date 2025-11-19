@@ -78,6 +78,128 @@ python -m abluka.main --width=900 --height=900
 
 ## Bilgisayar Zorluk Seviyeleri
 
-- **Easy (Kolay)**: Bilgisayar rastgele hamleler yapar.
-- **Normal**: Bilgisayar temel bir strateji kullanır, açık alanlara doğru hareket etmeye çalışır.
-- **Hard (Zor)**: Bilgisayar daha gelişmiş stratejiler kullanır, merkezi kontrol etmeye çalışır ve rakibin hareket kabiliyetini kısıtlamaya odaklanır. 
+- **Kolay**: Basit strateji, güvenlik odaklı, %40 rastgelelik
+- **Normal**: Gelişmiş strateji, 2 tur ilerisi simülasyon, %15 rastgelelik  
+- **Zor**: Q-learning AI, maksimum strateji, %5 rastgelelik
+
+### AI Özellikleri
+
+✅ **Kendini Koruma**
+- Asla kendini ablukaya sokmaz
+- Köşe/kenar tehlikelerinden kaçınır
+- Gelecek turları simüle eder
+- Minimum hamle garantisi
+
+✅ **Stratejik Engel Yerleştirme**
+- Sadece 4 kare mesafede engel koyar
+- Rakibi sınırlamaya odaklanır
+- Kaçış yollarını keser
+- Koridorları tıkar
+
+✅ **Gerçekçi Oyun**
+- İnsan benzeri hatalar (zorluk seviyesine göre)
+- Dinamik düşünme süresi
+- Duygusal tepkiler
+
+## EXE Build (Standalone Uygulaması)
+
+### Windows
+```bash
+build_exe.bat
+```
+
+### Linux/Mac
+```bash
+chmod +x build_exe.sh
+./build_exe.sh
+```
+
+Build sonrası: `dist/Abluka.exe` veya `dist/Abluka`
+
+### GitHub Actions ile Otomatik Build
+
+Repository'ye tag push ederseniz otomatik olarak Windows ve Linux için executable'lar oluşturulur:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Release'ler GitHub Releases sayfasında görünecektir.
+
+## Dosya Yapısı
+
+```
+abluka-online/
+├── abluka/
+│   ├── assets/
+│   │   └── sounds/       # Oyun sesleri
+│   ├── main.py           # Ana giriş noktası
+│   ├── gui.py            # Grafik arayüz
+│   ├── game_logic.py     # Oyun mantığı
+│   ├── ai_player.py      # AI sistemi
+│   └── sound_manager.py  # Ses yönetimi
+├── logs/                 # Oyun logları (git'de değil)
+├── .github/
+│   └── workflows/
+│       └── build.yml     # Otomatik build
+├── build_exe.bat         # Windows build
+├── build_exe.sh          # Linux/Mac build
+├── requirements.txt      # Gerekli paketler
+└── README.md
+
+İgnore edilen:
+- logs/                   # Oyun logları
+- __pycache__/           # Python cache
+- *.pkl                  # AI öğrenme dosyaları
+- build/, dist/          # Build çıktıları
+```
+
+## Geliştirme
+
+### Yeni Özellikler
+
+**v2.0 (Mevcut)**
+- ✅ Modern UI tasarımı
+- ✅ Gelişmiş AI sistemi
+- ✅ Güvenlik odaklı hamle seçimi
+- ✅ Stratejik engel yerleştirme
+- ✅ Otomatik build sistemi
+
+Detaylı değişiklikler için:
+- `DEGISIKLIKLER.md` - Tasarım ve AI genel iyileştirmeleri
+- `AI_GUVENLIK_IYILESTIRMELERI.md` - AI güvenlik sistemi
+- `ENGEL_YERLESTIRME_IYILESTIRMELERI.md` - Engel stratejisi
+
+### Test
+
+```bash
+python -m abluka.main
+```
+
+Konsolu izleyerek AI kararlarını görebilirsiniz:
+```
+[AI-ZOR] 15 hamle değerlendiriliyor...
+[ENGEL] En iyi 3: 520, 470, 380
+[AI-ZOR] 11 güvenli hamle bulundu
+```
+
+## Katkıda Bulunma
+
+1. Fork edin
+2. Feature branch oluşturun (`git checkout -b feature/amazing`)
+3. Commit edin (`git commit -m 'feat: amazing özellik'`)
+4. Push edin (`git push origin feature/amazing`)
+5. Pull Request açın
+
+## Lisans
+
+Bu proje eğitim amaçlı geliştirilmiştir.
+
+## Geliştirici
+
+**Ubden® Akademi**
+
+---
+
+⭐ Beğendiyseniz yıldız vermeyi unutmayın!
