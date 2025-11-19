@@ -33,22 +33,22 @@ class AIPlayer:
             self.max_time = max(self.max_time, 1.5)
             self.ml_usage_factor = 0.0  # Kolay modda ML yok
             self.randomness = 0.4  # %40 rastgele hamle
-            self.min_safe_moves = 3  # En az 3 hamle kalmalı
+            self.min_safe_moves = 2  # En az 2 hamle kalmalı (daha esnek)
             self.future_turns_check = 1  # 1 tur ilerisini kontrol et
         elif self.difficulty == 'normal':
             self.base_depth = 4  # Orta seviye düşünme
             self.max_time = max(self.max_time, 2.5)
             self.ml_usage_factor = 0.3  # Az ML kullan
             self.randomness = 0.15  # %15 rastgele hamle
-            self.min_safe_moves = 4  # En az 4 hamle kalmalı
+            self.min_safe_moves = 3  # En az 3 hamle kalmalı (daha esnek)
             self.future_turns_check = 2  # 2 tur ilerisini kontrol et
         else:  # 'hard'
             self.base_depth = 5  # Daha derin düşünme
             self.max_time = max(self.max_time, 3.5)
             self.ml_usage_factor = 1.0  # Tam kapasite ML
             self.randomness = 0.05  # Çok az rastgele hamle
-            self.min_safe_moves = 4  # En az 4 hamle kalmalı
-            self.future_turns_check = 3  # 3 tur ilerisini kontrol et
+            self.min_safe_moves = 3  # En az 3 hamle kalmalı (daha esnek)
+            self.future_turns_check = 2  # 2 tur ilerisini kontrol et (3'ten azaltıldı)
 
         # Log / kayıt
         self.log_enabled = True
@@ -1156,8 +1156,8 @@ class AIPlayer:
 
     def _prune_obstacles(self, board, empties, player, top_k=6):
         """
-        İyileştirilmiş engel seçimi
-        En stratejik engel pozisyonlarını bulur
+        STRATEJİK engel seçimi - Rakibi sınırlamaya odaklanır
+        Alakasız (uzak) engelleri reddeder
         """
         scored = []
         opp = ('W' if player == 'B' else 'B')
@@ -1165,7 +1165,17 @@ class AIPlayer:
         opp_pos = board.black_pos if opp == 'B' else board.white_pos
         my_pos = board.black_pos if player == 'B' else board.white_pos
         
+        # Maksimum stratejik mesafe - bundan uzaktaki engeller alakasız
+        MAX_STRATEGIC_DISTANCE = 4
+        
         for e in empties:
+            # Rakibe olan mesafe
+            dist_to_opp = abs(e[0] - opp_pos[0]) + abs(e[1] - opp_pos[1])
+            
+            # ÇOK UZAKSA REDDET - Alakasız engel
+            if dist_to_opp > MAX_STRATEGIC_DISTANCE:
+                continue  # Bu engeli hiç değerlendirme
+            
             tb = self._clone_board(board)
             tb.place_obstacle(e)
             
@@ -1175,72 +1185,119 @@ class AIPlayer:
             
             score = 0
             
-            # 1. Rakibin hamle sayısını azalt (en önemli)
+            # 1. RAKİBİN HAMLE SAYISINI AZALT (EN ÖNEMLİ - 3x daha önemli)
             after_op = len(tb.get_valid_moves(opp))
             mobility_reduction = base_opm - after_op
-            score += mobility_reduction * 50
+            score += mobility_reduction * 150  # Çok daha yüksek ağırlık!
             
-            # 2. Rakibe yakın engeller daha değerli
-            dist_to_opp = abs(e[0] - opp_pos[0]) + abs(e[1] - opp_pos[1])
-            if dist_to_opp <= 2:
-                score += 80  # Çok yakın
-            elif dist_to_opp <= 3:
-                score += 40  # Yakın
-            else:
-                score += max(0, 20 - dist_to_opp * 3)  # Uzakta
+            # Rakibi çok sınırladıysak dev bonus
+            if after_op <= 3 and mobility_reduction > 0:
+                score += 300  # Rakip sıkışıyor!
+            elif after_op <= 5 and mobility_reduction > 0:
+                score += 150  # İyi sınırlama
             
-            # 3. Benden uzak engeller daha iyi (kendi alanımı daraltmamak için)
+            # 2. RAKİBE YAKINLIK (ÇOK ÖNEMLİ)
+            if dist_to_opp == 1:
+                score += 200  # Hemen yanı - en değerli!
+            elif dist_to_opp == 2:
+                score += 120  # Çok yakın
+            elif dist_to_opp == 3:
+                score += 60   # Yakın
+            elif dist_to_opp == 4:
+                score += 20   # Orta mesafe
+            # dist > 4 zaten reddedildi
+            
+            # 3. Benden uzak engeller tercih et (ama çok önemli değil)
             dist_to_me = abs(e[0] - my_pos[0]) + abs(e[1] - my_pos[1])
             if dist_to_me >= 3:
-                score += 30  # İyi, uzak
+                score += 40
             elif dist_to_me <= 1:
-                score -= 40  # Kötü, çok yakın
+                score -= 80  # Kendime çok yakınsa kötü
             
-            # 4. Rakibin kaçış yollarını kes
-            # Engel, rakibin merkeze veya açık alana giden yolda mı?
-            center = board.size // 2
-            # Rakip merkeze gidiyor mu? (mesafe kontrolü)
-            opp_to_center = abs(opp_pos[0] - center) + abs(opp_pos[1] - center)
-            obs_to_center = abs(e[0] - center) + abs(e[1] - center)
+            # 4. RAKİBİN KAÇIŞ YOLLARINI KES
+            # Rakibin hareket edebileceği yönleri engelle
+            blocking_value = 0
             
-            # Engel rakiple merkez arasındaysa bonus
-            if obs_to_center < opp_to_center and dist_to_opp <= 3:
-                score += 50
+            # Rakibin olası hamle pozisyonlarını kontrol et
+            for dr in [-1, 0, 1]:
+                for dc in [-1, 0, 1]:
+                    if dr == 0 and dc == 0:
+                        continue
+                    
+                    target_r = opp_pos[0] + dr
+                    target_c = opp_pos[1] + dc
+                    
+                    # Bu pozisyon engelin çok yakınında mı?
+                    if (0 <= target_r < board.size and 
+                        0 <= target_c < board.size):
+                        dist_to_target = abs(e[0] - target_r) + abs(e[1] - target_c)
+                        if dist_to_target <= 1:
+                            blocking_value += 50  # Bu hamle yolunu tıkıyor
             
-            # 5. Köşelere doğru itmek
-            # Rakip zaten köşeye yakınsa, o tarafı tıka
+            score += blocking_value
+            
+            # 5. KÖŞEYE İTMEK
             corners = [(0, 0), (0, board.size-1), (board.size-1, 0), (board.size-1, board.size-1)]
+            best_corner_push = 0
+            
             for corner in corners:
                 corner_dist_opp = abs(opp_pos[0] - corner[0]) + abs(opp_pos[1] - corner[1])
-                corner_dist_obs = abs(e[0] - corner[0]) + abs(e[1] - corner[1])
                 
-                if corner_dist_opp <= 3 and corner_dist_obs < corner_dist_opp:
-                    score += 35  # Rakibi köşeye sıkıştır
+                # Rakip köşeye yakınsa (<= 4)
+                if corner_dist_opp <= 4:
+                    corner_dist_obs = abs(e[0] - corner[0]) + abs(e[1] - corner[1])
+                    
+                    # Engel, rakiple köşe arasındaysa
+                    if corner_dist_obs < corner_dist_opp:
+                        push_value = 80 - (corner_dist_opp * 10)  # Daha yakınsa daha değerli
+                        best_corner_push = max(best_corner_push, push_value)
             
-            # 6. Dar geçitleri kapat
-            # Bu engel rakibin geçebileceği bir koridoru kapatıyor mu?
-            # Engelin etrafındaki engel yoğunluğu
-            neighbors_with_obstacles = 0
-            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                nr, nc = e[0] + dr, e[1] + dc
-                if 0 <= nr < board.size and 0 <= nc < board.size:
-                    if board.grid[nr][nc] in ('X', 'R'):
-                        neighbors_with_obstacles += 1
+            score += best_corner_push
             
-            # Eğer etrafında 2-3 engel varsa, bu bir geçit kapatma olabilir
-            if neighbors_with_obstacles >= 2:
-                score += 60  # Geçit kapatma bonusu
+            # 6. GEÇİT KAPATMA (rakip yakınındaysa)
+            if dist_to_opp <= 3:
+                neighbors_with_obstacles = 0
+                for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                    nr, nc = e[0] + dr, e[1] + dc
+                    if 0 <= nr < board.size and 0 <= nc < board.size:
+                        if board.grid[nr][nc] in ('X', 'R'):
+                            neighbors_with_obstacles += 1
+                
+                if neighbors_with_obstacles >= 2:
+                    score += 100  # Dar geçit kapatma bonusu
+                elif neighbors_with_obstacles == 1:
+                    score += 40   # Duvar oluşturma başlangıcı
             
-            # 7. Genel pozisyon değerlendirmesi
+            # 7. MERKEZ KONTROLÜ (sadece oyun başındaysa)
+            total_obstacles = len(board.obstacles)
+            if total_obstacles < 15:  # Oyun başı
+                center = board.size // 2
+                # Rakip merkeze uzaksa, merkezi kontrol et
+                opp_to_center = abs(opp_pos[0] - center) + abs(opp_pos[1] - center)
+                if opp_to_center > 3:
+                    obs_to_center = abs(e[0] - center) + abs(e[1] - center)
+                    if obs_to_center <= 2:
+                        score += 30  # Merkezi kontrol et
+            
+            # 8. GENEL POZİSYON DEĞERLENDİRMESİ (küçük ağırlık)
             general_eval = self._evaluate_board(tb, player)
-            score += general_eval / 20.0  # Normalize et
+            score += general_eval / 30.0  # Az etki
             
             scored.append((e, score))
         
         if not scored:
-            return empties[:top_k]
+            # Hiç stratejik engel yok, en yakınları al
+            print(f"[ENGEL] UYARI: Stratejik engel yok! En yakın {top_k} engel seçiliyor")
+            close_empties = sorted(empties, 
+                                  key=lambda pos: abs(pos[0] - opp_pos[0]) + abs(pos[1] - opp_pos[1]))
+            return close_empties[:top_k]
         
         scored.sort(key=lambda x: x[1], reverse=True)
+        
+        # Debug: En iyi 3 engelin skorunu göster
+        if len(scored) >= 3:
+            print(f"[ENGEL] En iyi 3: {scored[0][1]:.0f}, {scored[1][1]:.0f}, {scored[2][1]:.0f}")
+        
         return [x[0] for x in scored[:top_k]]
 
     def _clone_board(self, board):
@@ -1299,15 +1356,20 @@ class AIPlayer:
             if len(my_moves) < 5:
                 return False, f"Kenar tehlikesi (sadece {len(my_moves)} hamle)"
         
-        # 5. Engel kendi pozisyonuma çok yakın mı?
+        # 5. Engel kendi pozisyonuma çok yakın mı? - DAHA ESNEKLEŞTİRİLDİ
         my_pos = move_pos
         dist_to_obstacle = abs(my_pos[0] - obstacle_pos[0]) + abs(my_pos[1] - obstacle_pos[1])
+        
         if dist_to_obstacle <= 1:
-            # Hemen yanıma engel koyuyorum - bu güvenli mi?
-            # Etrafımı kontrol et
+            # Hemen yanıma engel koyuyorum - ama bu stratejik olabilir!
+            # Sadece etrafım TAMAMEN kapanıyorsa reddet
             surrounding_obstacles = self._count_surrounding_obstacles(test_board, my_pos)
-            if surrounding_obstacles >= 4:  # 4 veya daha fazla komşu engel = tehlikeli
+            
+            if surrounding_obstacles >= 6:  # 6+ komşu engel = çok tehlikeli (eskiden 4)
                 return False, f"Etrafım çok engelli ({surrounding_obstacles}/8)"
+            
+            # 5 komşu engel bile olsa, hala 3 yönde hareket edebiliyorum demektir
+            # Bu kabul edilebilir
         
         # 6. Gelecek turları simüle et
         opponent = 'W' if player == 'B' else 'B'

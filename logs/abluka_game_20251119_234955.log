@@ -1,0 +1,363 @@
+Abluka AI Log - 2025-11-19 23:49:55
+Mod (Difficulty): hard
+------------------------------------------------
+
+Hamle #1
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (1, 3)
+Engel: (5, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . X . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #2
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 2)
+Engel: (2, 3)
+Strateji: ML => Q + heuristic + safety => 1.82 (Q:0.00), Qsize=42
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . X . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #3
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 2)
+Engel: (4, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %53.3
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . B X . . .
+. . . . . . .
+. . X . . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #4
+Oyuncu: AI (W)
+Taş Hamlesi: (4, 3)
+Engel: (1, 1)
+Strateji: ML => Q + heuristic + safety => 1.94 (Q:0.00), Qsize=42
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . B X . . .
+. . . . . . .
+. . X . . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #5
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (3, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. . . X . . .
+. . . B X . .
+. . X W . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #6
+Oyuncu: AI (W)
+Taş Hamlesi: (3, 2)
+Engel: (2, 4)
+Strateji: ML => Q + heuristic + safety => 1.80 (Q:0.00), Qsize=42
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. . . X . . .
+. . . B X . .
+. . X W . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #7
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 2)
+Engel: (2, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X B X X . .
+. . W . X . .
+. . X . . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #8
+Oyuncu: AI (W)
+Taş Hamlesi: (4, 1)
+Engel: (3, 3)
+Strateji: ML => Q + heuristic + safety => 1.52 (Q:0.00), Qsize=42
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X B X X . .
+. . W . X . .
+. . X . . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #9
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (3, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %38.0
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X . X X . .
+. X B X X . .
+. W X . . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #10
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 2)
+Engel: (2, 2)
+Strateji: ML => Q + heuristic + safety => 1.55 (Q:0.00), Qsize=42
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X . X X . .
+. X B X X . .
+. W X . . . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #11
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (6, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %45.0
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X X X X . .
+. X . X X . .
+. . X B . . .
+. . W X . . .
+. . . X . . .
+------------------------------------------------
+
+Hamle #12
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 1)
+Engel: (3, 2)
+Strateji: ML => Q + heuristic + safety => 1.39 (Q:0.00), Qsize=42
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X X X X . .
+. X . X X . .
+. . X B . . .
+. . W X . . .
+. . . X . . .
+------------------------------------------------
+
+Hamle #13
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 2)
+Engel: (4, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %42.0
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X X X X . .
+. X X X X . .
+. X X . . . .
+. W B X . . .
+. . . X . . .
+------------------------------------------------
+
+Hamle #14
+Oyuncu: AI (W)
+Taş Hamlesi: (4, 0)
+Engel: (0, 0)
+Strateji: Normal => Acil durum hamlesi
+Tahta Durumu:
+. . . . . . .
+. X . . . . .
+. X X X X . .
+. X X X X . .
+. X X . . . .
+. W B X . . .
+. . . X . . .
+------------------------------------------------
+
+Hamle #15
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (3, 0)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %60.0
+Tahta Durumu:
+X . . . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+W X X B . . .
+. . . X . . .
+. . . X . . .
+------------------------------------------------
+
+Hamle #16
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 1)
+Engel: (5, 2)
+Strateji: ML => Q + heuristic + safety => 1.29 (Q:0.00), Qsize=42
+Tahta Durumu:
+X . . . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+W X X B . . .
+. . . X . . .
+. . . X . . .
+------------------------------------------------
+
+Hamle #17
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 4)
+Engel: (6, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+X . . . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+. X X . B . .
+. W X X . . .
+. . X X . . .
+------------------------------------------------
+
+Hamle #18
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 0)
+Engel: (0, 1)
+Strateji: Normal => Acil durum hamlesi
+Tahta Durumu:
+X . . . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+. X X . B . .
+. W X X . . .
+. . X X . . .
+------------------------------------------------
+
+Hamle #19
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 4)
+Engel: (4, 0)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+X X . . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+X X X . . . .
+W . X X B . .
+. . X X . . .
+------------------------------------------------
+
+Hamle #20
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 1)
+Engel: (0, 2)
+Strateji: Normal => Acil durum hamlesi
+Tahta Durumu:
+X X . . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+X X X . . . .
+W . X X B . .
+. . X X . . .
+------------------------------------------------
+
+Hamle #21
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (6, 4)
+Engel: (6, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %60.0
+Tahta Durumu:
+X X X . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+X X X . . . .
+. W X X . . .
+. X X X B . .
+------------------------------------------------
+
+Hamle #22
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 0)
+Engel: (0, 3)
+Strateji: Kolay => Acil durum hamlesi
+Tahta Durumu:
+X X X . . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+X X X . . . .
+. W X X . . .
+. X X X B . .
+------------------------------------------------
+
+Hamle #23
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 4)
+Engel: (5, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %90.0
+Tahta Durumu:
+X X X X . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+X X X . . . .
+W X X X B . .
+. X X X . . .
+------------------------------------------------
+
+Hamle #24
+Oyuncu: AI (W)
+Taş Hamlesi: None
+Engel: None
+Strateji: Kolay => Acil durum hamlesi
+Tahta Durumu:
+X X X X . . .
+. X . . . . .
+. X X X X . .
+X X X X X . .
+X X X . . . .
+W X X X B . .
+. X X X . . .
+------------------------------------------------
