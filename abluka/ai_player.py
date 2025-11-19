@@ -27,40 +27,31 @@ class AIPlayer:
         self.difficulty = difficulty
         self.max_time = float(max_time)  # her hamlede düşünülecek max süre (saniye)
 
-        # Minimax / taktik parametreleri - zorluk seviyesine göre ayar
-        self.lookahead_depth = 0
-        self.max_tactical_candidates = 0
-        self.tactical_weight = 0.0
+        # Minimax parametreleri - ULTRA İYİLEŞTİRİLMİŞ zorluk seviyeleri
         if self.difficulty == 'easy':
             self.base_depth = 2  # Daha basit düşünme
             self.max_time = max(self.max_time, 1.5)
             self.ml_usage_factor = 0.0  # Kolay modda ML yok
-            self.randomness = 0.4  # %40 rastgele hamle
-            self.min_safe_moves = 2  # En az 2 hamle kalmalı (daha esnek)
+            self.randomness = 0.35  # %35 rastgele hamle
+            self.min_safe_moves = 1  # Çok esnek - riske girer
             self.future_turns_check = 1  # 1 tur ilerisini kontrol et
-            self.lookahead_depth = 1
-            self.max_tactical_candidates = 2
-            self.tactical_weight = 0.4
+            self.aggression = 0.3  # %30 saldırgan
         elif self.difficulty == 'normal':
-            self.base_depth = 4  # Orta seviye düşünme
-            self.max_time = max(self.max_time, 2.5)
-            self.ml_usage_factor = 0.3  # Az ML kullan
-            self.randomness = 0.15  # %15 rastgele hamle
-            self.min_safe_moves = 3  # En az 3 hamle kalmalı (daha esnek)
+            self.base_depth = 5  # Daha derin düşünme (4→5)
+            self.max_time = max(self.max_time, 3.0)
+            self.ml_usage_factor = 0.5  # Orta ML kullan (0.3→0.5)
+            self.randomness = 0.08  # %8 rastgele hamle (15→8)
+            self.min_safe_moves = 2  # Daha esnek (3→2)
             self.future_turns_check = 2  # 2 tur ilerisini kontrol et
-            self.lookahead_depth = 3
-            self.max_tactical_candidates = 6
-            self.tactical_weight = 0.85
+            self.aggression = 0.65  # %65 saldırgan
         else:  # 'hard'
-            self.base_depth = 5  # Daha derin düşünme
-            self.max_time = max(self.max_time, 3.5)
+            self.base_depth = 6  # Çok derin düşünme (5→6)
+            self.max_time = max(self.max_time, 4.0)
             self.ml_usage_factor = 1.0  # Tam kapasite ML
-            self.randomness = 0.0  # Rakibe taviz yok
-            self.min_safe_moves = 3  # En az 3 hamle kalmalı (daha esnek)
-            self.future_turns_check = 2  # 2 tur ilerisini kontrol et (3'ten azaltıldı)
-            self.lookahead_depth = 4
-            self.max_tactical_candidates = 8
-            self.tactical_weight = 1.25
+            self.randomness = 0.0  # Hiç rastgele yok (5→0)
+            self.min_safe_moves = 2  # Dengeli risk (3→2)
+            self.future_turns_check = 3  # 3 tur ilerisini kontrol et (2→3)
+            self.aggression = 0.85  # %85 saldırgan - çok agresif!
 
         # Log / kayıt
         self.log_enabled = True
@@ -300,10 +291,11 @@ class AIPlayer:
     # -------------------------------
     def _choose_move_old_normal(self, board, player, time_limit, start_time):
         """
-        İyileştirilmiş KOLAY mod:
-        - GÜVENLİK ÖNCELİKLİ: Kendini ablukaya sokmaz
-        - Bazen rastgele, bazen basit stratejik düşünme
+        İYİLEŞTİRİLMİŞ KOLAY mod:
+        - GÜVENLİK + BASİT STRATEJİ
+        - Bazen rastgele, bazen akıllı
         - Çok basit pozisyon değerlendirmesi
+        - İnsan gibi hata yapar ama tamamen rastgele değil
         """
         valid_moves = board.get_valid_moves(player)
         if not valid_moves:
@@ -311,68 +303,78 @@ class AIPlayer:
         
         opponent = 'W' if player == 'B' else 'B'
         
+        print(f"[AI-KOLAY] {len(valid_moves)} hamle değerlendiriliyor...")
+        
         # ÖNCE GÜVENLİ HAMLELERİ TOPLA
         safe_moves = []
-        
-        print(f"[AI-KOLAY] {len(valid_moves)} hamle değerlendiriliyor...")
         
         for mv in valid_moves:
             tmpb = self._clone_board(board)
             tmpb.move_piece(player, mv)
             empties = self._get_empty_positions(tmpb)
             
+            # Engel sayısını sınırla (hız için)
+            if len(empties) > 15:
+                empties = self._prune_obstacles(tmpb, empties, player, 15)
+            
             # Her hamle için güvenli engelleri bul
             for obs in empties:
                 is_safe, reason = self._is_safe_move(board, player, mv, obs)
                 
                 if is_safe:
-                    # Basit skor: sadece hamle sayısına bak
                     tb2 = self._clone_board(tmpb)
                     tb2.place_obstacle(obs)
                     
+                    # Basit skor hesaplama
                     my_moves_after = len(tb2.get_valid_moves(player))
                     opp_moves_after = len(tb2.get_valid_moves(opponent))
                     
-                    # Basit değerlendirme
-                    simple_score = my_moves_after * 10 - opp_moves_after * 5
+                    # Basit: Benim hamlem çok, rakibin az
+                    simple_score = my_moves_after * 15 - opp_moves_after * 10
                     
-                    # Kaçış yolları değerlendirmesi
+                    # Kaçış yolları bonusu
                     escape = self._get_escape_routes(tb2, player)
-                    simple_score += escape / 10
+                    simple_score += escape / 15
+                    
+                    # Rakibi ablukaya aldık mı? (bunu görebilir)
+                    if tb2.is_abluka(opponent):
+                        simple_score += 10000  # Kazanma hamlesini görür
                     
                     safe_moves.append((mv, obs, simple_score))
         
         print(f"[AI-KOLAY] {len(safe_moves)} güvenli hamle bulundu")
         
         if not safe_moves:
-            print("[AI-KOLAY] UYARI: Güvenli hamle yok! En iyi kötü hamleyi seç")
-            # Acil durum: En azından kendini ablukaya sokmayanı seç
-            for mv in valid_moves[:3]:
+            print("[AI-KOLAY] UYARI: Güvenli hamle yok! Rastgele deniyorum")
+            # Acil durum: Rastgele güvenli hamle dene
+            for _ in range(10):
+                mv = random.choice(valid_moves)
                 tmpb = self._clone_board(board)
                 tmpb.move_piece(player, mv)
                 empties = self._get_empty_positions(tmpb)
-                for obs in empties[:5]:
+                if empties:
+                    obs = random.choice(empties[:10])
                     tb = self._clone_board(tmpb)
                     tb.place_obstacle(obs)
-                    if not tb.is_abluka(player) and len(tb.get_valid_moves(player)) >= 2:
-                        self.last_move_reasoning = "Kolay => Acil durum hamlesi"
+                    if not tb.is_abluka(player):
+                        self.last_move_reasoning = "Kolay => Rastgele acil hamle"
                         return mv, obs
             return None, None
         
         # Güvenli hamleler arasından seç
         safe_moves.sort(key=lambda x: x[2], reverse=True)
         
-        # %40 ihtimalle rastgele (ama güvenli) hamle
-        if random.random() < self.randomness and len(safe_moves) > 3:
-            # En iyi %70'lik dilimden rastgele seç
-            top_portion = max(3, int(len(safe_moves) * 0.7))
+        # Rastgele hamle oranı: %35
+        if random.random() < self.randomness:
+            # En iyi %60'lık dilimden rastgele seç (insan gibi)
+            top_portion = max(5, int(len(safe_moves) * 0.6))
             choice = random.choice(safe_moves[:top_portion])
-            self.last_move_reasoning = f"Kolay => Rastgele güvenli hamle (skor: {choice[2]:.0f})"
+            self.last_move_reasoning = f"Kolay => Rastgele güvenli (skor: {choice[2]:.0f})"
             return choice[0], choice[1]
         
-        # En iyi güvenli hamleyi seç
+        # En iyi hamleyi seç
         best = safe_moves[0]
-        self.last_move_reasoning = f"Kolay => En iyi güvenli hamle (skor: {best[2]:.0f})"
+        self.last_move_reasoning = f"Kolay => En iyi güvenli (skor: {best[2]:.0f})"
         return best[0], best[1]
 
     def _minimax_evaluation(self, board, depth, maximizing, main_player, alpha, beta):
@@ -419,24 +421,25 @@ class AIPlayer:
     # -------------------------------
     def _choose_move_old_hard(self, board, player, time_limit, start_time):
         """
-        İyileştirilmiş NORMAL mod:
-        - GÜVENLİK ÖNCELİKLİ: Gelecek turları simüle eder
-        - Daha akıllı strateji
-        - İyi pozisyon değerlendirmesi
-        - Rakibi sınırlamaya odaklanır
+        ULTRA İYİLEŞTİRİLMİŞ NORMAL mod:
+        - AGRESYF + AKILLI STRATEJİ
+        - Gelecek turları simüle eder
+        - Çok iyi pozisyon değerlendirmesi
+        - Rakibi ezmeye odaklanır
+        - Minimax + heuristic
         """
         valid_moves = board.get_valid_moves(player)
         opponent = ('W' if player=='B' else 'B')
         
         print(f"[AI-NORMAL] {len(valid_moves)} hamle değerlendiriliyor...")
 
-        # 1. ÖNCE HIZLI KAZANÇ KONTROL ET (ama güvenli bir şekilde)
+        # 1. HIZLI KAZANÇ KONTROL ET (ve güvenli olsun)
         for mv in valid_moves:
             tb = self._clone_board(board)
             tb.move_piece(player, mv)
             empties = self._get_empty_positions(tb)
             
-            for obs in empties[:10]:
+            for obs in empties[:15]:  # 10→15 daha fazla kontrol
                 is_safe, _ = self._is_safe_move(board, player, mv, obs)
                 if not is_safe:
                     continue
@@ -448,20 +451,20 @@ class AIPlayer:
                     self.last_move_reasoning = "Normal => Güvenli direkt kazanç!"
                     return mv, obs
         
-        # 2. GÜVENLİ HAMLELERİ TOPLA
+        # 2. GÜVENLİ VE AGRESYF HAMLELERİ TOPLA
         safe_moves = []
         
         for mv in valid_moves:
-            if time.time() - start_time > time_limit * 0.8:
+            if time.time() - start_time > time_limit * 0.85:
                 break
             
             tmpb = self._clone_board(board)
             tmpb.move_piece(player, mv)
             empties = self._get_empty_positions(tmpb)
             
-            # Engel seçimini optimize et
-            if len(empties) > 10:
-                empties = self._prune_obstacles(tmpb, empties, player, 10)
+            # Engel seçimini optimize et - daha fazla kontrol
+            if len(empties) > 15:
+                empties = self._prune_obstacles(tmpb, empties, player, 15)  # 10→15
             
             for obs in empties:
                 if time.time() - start_time > time_limit * 0.9:
@@ -475,124 +478,76 @@ class AIPlayer:
                 testb = self._clone_board(tmpb)
                 testb.place_obstacle(obs)
                 
-                # Pozisyon değerlendirmesi
+                # POZİSYON DEĞERLENDİRMESİ - Çok detaylı
                 score = self._evaluate_board(testb, player)
                 
                 # Kaçış yolları bonusu
                 escape = self._get_escape_routes(testb, player)
-                score += escape
+                score += escape * 1.2  # 1.0→1.2 daha önemli
+                
+                # RAKİBE VERİLEN ZARAR - ULTRA BONUS
+                opp_moves_before = len(board.get_valid_moves(opponent))
+                opp_moves_after = len(testb.get_valid_moves(opponent))
+                damage = opp_moves_before - opp_moves_after
+                
+                if damage > 0:
+                    score += damage * 80  # Her azalan hamle için dev bonus
+                
+                # Rakibi çok sınırladıysak ekstra bonus
+                if opp_moves_after <= 3:
+                    score += 500  # Rakip neredeyse ablukada!
+                elif opp_moves_after <= 5:
+                    score += 250  # Rakip zorlanıyor
+                
+                # Minimax değerlendirmesi (hafif, çünkü zaman alıyor)
+                if time.time() - start_time < time_limit * 0.7:
+                    minimax_score = self._minimax_evaluation(testb, 2, True, player, 
+                                                             float('-inf'), float('inf'))
+                    score += minimax_score / 5.0  # Minimax'ı da dikkate al
                 
                 safe_moves.append((mv, obs, score))
         
         print(f"[AI-NORMAL] {len(safe_moves)} güvenli hamle bulundu")
         
         if not safe_moves:
-            print("[AI-NORMAL] UYARI: Güvenli hamle yok! Acil mod")
-            # Acil durum: En azından kendini ablukaya sokmayanı seç
-            for mv in valid_moves[:5]:
+            print("[AI-NORMAL] UYARI: Güvenli hamle yok! Esnek modda deniyorum")
+            # Esnek mod: Daha az kısıtlı güvenlik
+            for mv in valid_moves[:8]:  # 5→8 daha fazla dene
                 tmpb = self._clone_board(board)
                 tmpb.move_piece(player, mv)
-                empties = self._get_empty_positions(tmpb)[:10]
-                for obs in empties:
+                empties = self._get_empty_positions(tmpb)
+                
+                if len(empties) > 15:
+                    empties = self._prune_obstacles(tmpb, empties, player, 15)
+                
+                for obs in empties[:15]:  # 10→15 daha fazla
                     tb = self._clone_board(tmpb)
                     tb.place_obstacle(obs)
-                    if not tb.is_abluka(player) and len(tb.get_valid_moves(player)) >= 3:
-                        self.last_move_reasoning = "Normal => Acil durum hamlesi"
-                        return mv, obs
+                    
+                    # Daha esnek güvenlik: En azından abluka olmamalı
+                    if not tb.is_abluka(player) and len(tb.get_valid_moves(player)) >= 2:
+                        score = self._evaluate_board(tb, player)
+                        safe_moves.append((mv, obs, score))
             
-            # Son çare: Kolay moda geç
-            return self._choose_move_old_normal(board, player, time_limit, start_time)
+            if not safe_moves:
+                # Hala yok, kolay moda düş
+                print("[AI-NORMAL] Son çare: Kolay mod stratejisi")
+                return self._choose_move_old_normal(board, player, time_limit, start_time)
         
+        # En iyi hamleyi seç
         safe_moves.sort(key=lambda x: x[2], reverse=True)
-
-        # Taktiğe dayalı kısa minimax ile en iyi hamleyi doğrula
-        tactical_depth = max(1, self.lookahead_depth)
-        tactical_cap = min(len(safe_moves), max(3, self.max_tactical_candidates))
-        evaluated_moves = []
-
-        if tactical_cap > 0:
-            per_candidate_budget = max(0.08, (self.max_time * 0.45) / max(1, tactical_cap))
-            for mv, obs, heur in safe_moves[:tactical_cap]:
-                sim_board = self._simulate_board_after_action(board, player, mv, obs)
-                if not sim_board:
-                    continue
-                tactical_value = self._tactical_lookahead(
-                    sim_board,
-                    player,
-                    tactical_depth,
-                    per_candidate_budget,
-                    maximizing_turn=False
-                )
-                combined = heur + tactical_value * self.tactical_weight
-                evaluated_moves.append((combined, mv, obs, heur, tactical_value))
-
-        scored_moves = evaluated_moves[:]
-        for mv, obs, heur in safe_moves[tactical_cap:]:
-            scored_moves.append((heur, mv, obs, heur, None))
-
-        if not scored_moves:
-            print("[AI-NORMAL] Taktik değerlendirme başarısız, heuristik en iyi hamle seçiliyor.")
-            best = safe_moves[0]
-            self.last_move_reasoning = f"Normal => Heuristik güvenli hamle (skor: {best[2]:.0f})"
-            return best[0], best[1]
-
-        scored_moves.sort(key=lambda x: x[0], reverse=True)
-
-        opponent = ('W' if player == 'B' else 'B')
-        pressure = len(board.get_valid_moves(player)) <= 3 or len(board.get_valid_moves(opponent)) <= 3
-
-        chosen = scored_moves[0]
-        if (not pressure and self.randomness > 0 and len(scored_moves) > 3
-                and random.random() < self.randomness):
-            top_portion = max(3, int(len(scored_moves) * 0.3))
-            chosen = random.choice(scored_moves[:top_portion])
-            choice_score = chosen[0]
-            self.last_move_reasoning = (
-                f"Normal => Taktik varyasyon (skor: {choice_score:.0f})"
-            )
-        else:
-            choice_score = chosen[0]
-            if chosen[4] is not None:
-                self.last_move_reasoning = (
-                    f"Normal => Derin taktik {tactical_depth} (heur {chosen[3]:.0f} + sim {chosen[4]:.0f})"
-                )
-            else:
-                self.last_move_reasoning = (
-                    f"Normal => Heuristik güvenli hamle (skor: {choice_score:.0f})"
-                )
-
-        return chosen[1], chosen[2]
-
-    def _simulate_board_after_action(self, board, player, move, obstacle):
-        """Verilen hamleyi ve engeli uyguladıktan sonraki tahtayı döndür."""
-        sim_board = self._clone_board(board)
-        move_ok = sim_board.move_piece(player, move)
-        place_ok = sim_board.place_obstacle(obstacle)
-        if not move_ok or not place_ok:
-            return None
-        return sim_board
-
-    def _tactical_lookahead(self, board, player, depth, time_budget, maximizing_turn=False):
-        """
-        Kısa süreli derin arama.
-        depth: ileride kaç hamle incelenecek (rakip hamleleri dahil)
-        time_budget: saniye cinsinden tahsis edilmiş süre
-        maximizing_turn: sıradaki oyuncu main_player mı?
-        """
-        if depth <= 0 or board is None:
-            return self._evaluate_board(board, player) if board else -999999
-        budget = max(0.05, time_budget)
-        start = time.time()
-        return self._alpha_beta_minimax(
-            board,
-            depth,
-            maximizing_turn,
-            player,
-            float('-inf'),
-            float('inf'),
-            start,
-            budget
-        )
+        
+        # Çok az rastgelelik: %8
+        if random.random() < self.randomness and len(safe_moves) > 8:
+            # En iyi %20'lik dilimden seç (çok dar - neredeyse en iyisi)
+            top_portion = max(3, int(len(safe_moves) * 0.2))  # 0.3→0.2
+            choice = random.choice(safe_moves[:top_portion])
+            self.last_move_reasoning = f"Normal => Üst seviye hamle (skor: {choice[2]:.0f})"
+            return choice[0], choice[1]
+        
+        best = safe_moves[0]
+        self.last_move_reasoning = f"Normal => Optimal hamle (skor: {best[2]:.0f})"
+        return best[0], best[1]
 
     def _search_best_move(self, board, player, depth, start_time, time_limit):
         best_mv = None
@@ -749,8 +704,13 @@ class AIPlayer:
 
     def _choose_move_ultra_ml(self, board, player, time_limit, start_time):
         """
-        Q-learning tabanlı seçim (hard) - GÜVENLİK ÖNCELİKLİ
-        insan vs AI durumunda exploration=0, self-play'de >0.
+        ULTRA İYİLEŞTİRİLMİŞ Q-learning + Heuristic (HARD MOD)
+        
+        - GÜVENLİK + AGRESYON dengesi
+        - Q-learning bilgisi
+        - Gelişmiş heuristic
+        - Rakibi ezmeye odaklı
+        - Hiç rastgelelik yok (insanla oynarken)
         """
         if not self.learning_enabled:
             self.last_move_reasoning = "Hard disabled => fallback normal"
@@ -760,17 +720,24 @@ class AIPlayer:
         st = self._state_to_features(board, player)
         self.current_state = st
 
-        # Hızlı abluka? (ama güvenli)
+        # 1. Hızlı abluka kontrolü (ama güvenli)
         immediate = self._check_immediate_win(board, player)
         if immediate:
             mv, obs = immediate
-            # Güvenlik kontrolü
             is_safe, _ = self._is_safe_move(board, player, mv, obs)
             if is_safe:
                 self.last_move_reasoning = "ML => Güvenli ani kazanma"
                 return immediate
             else:
-                print("[AI-ZOR] Kazanma hamlesi güvenli değil, devam ediyorum")
+                print("[AI-ZOR] Kazanma hamlesi güvenli değil ama kontrol ediyorum...")
+                # Bazen riskli de olsa kazanma hamlesi yapılmalı!
+                test_b = self._clone_board(board)
+                test_b.move_piece(player, mv)
+                test_b.place_obstacle(obs)
+                if not test_b.is_abluka(player):
+                    # Kendim abluka olmazsam, yap!
+                    self.last_move_reasoning = "ML => Riskli ama kazandıran hamle!"
+                    return immediate
 
         val_moves = board.get_valid_moves(player)
         if not val_moves:
@@ -784,18 +751,25 @@ class AIPlayer:
 
         print(f"[AI-ZOR] {len(val_moves)} hamle değerlendiriliyor (exploration: {actual_expl:.3f})...")
 
-        # GÜVENLİ HAMLELERİ TOPLA
+        # 2. TÜM GÜVENLİ HAMLELERİ TOPLA VE DEĞERLENDİR
         safe_moves = []
         
         for mv in val_moves:
+            if time.time() - start_time > time_limit * 0.85:
+                break
+            
             tmpb = self._clone_board(board)
             tmpb.move_piece(player, mv)
             empties = self._get_empty_positions(tmpb)
             
-            if len(empties) > 12:
-                empties = self._prune_obstacles(tmpb, empties, player, 12)
+            # Engel sayısını optimize et (zor modda daha fazla kontrol)
+            if len(empties) > 18:
+                empties = self._prune_obstacles(tmpb, empties, player, 18)  # 12→18
             
             for obs in empties:
+                if time.time() - start_time > time_limit * 0.92:
+                    break
+                
                 # Güvenlik kontrolü
                 is_safe, reason = self._is_safe_move(board, player, mv, obs)
                 if not is_safe:
@@ -809,75 +783,80 @@ class AIPlayer:
                     self.last_move_reasoning = "ML => Güvenli direkt abluka"
                     return mv, obs
                 
-                # Q-value ve heuristic
+                # Q-value
                 nxt = self._state_to_features(tb2, player)
                 qv = self.q_table.get(nxt, 0)
-                heur = self._evaluate_board(tb2, player) / 2000.0
+                
+                # Heuristic - çok detaylı
+                heur = self._evaluate_board(tb2, player) / 1500.0  # 2000→1500 daha etkili
                 
                 # Kaçış yolları bonusu
                 escape = self._get_escape_routes(tb2, player)
-                escape_bonus = escape / 100.0
+                escape_bonus = escape / 80.0  # 100→80 daha etkili
                 
-                val = qv * 1.5 + heur + escape_bonus
+                # RAKİBE ZARAR - ULTRA ÖNEMLİ
+                opp_moves_before = len(board.get_valid_moves(opponent))
+                opp_moves_after = len(tb2.get_valid_moves(opponent))
+                damage = opp_moves_before - opp_moves_after
+                damage_bonus = damage * 0.15  # Her azalan hamle için bonus
                 
-                safe_moves.append((mv, obs, val, nxt, qv))
+                # Rakip çok sıkışıyorsa ekstra
+                if opp_moves_after <= 3:
+                    damage_bonus += 0.5  # Dev bonus
+                elif opp_moves_after <= 5:
+                    damage_bonus += 0.3  # İyi bonus
+                
+                # TOPLAM DEĞER - Dengeli ağırlıklar
+                val = (qv * 1.8 +           # Q-learning (1.5→1.8)
+                       heur +                # Heuristic
+                       escape_bonus +        # Kaçış yolları
+                       damage_bonus)         # Rakibe zarar
+                
+                safe_moves.append((mv, obs, val, nxt, qv, heur, damage))
         
         print(f"[AI-ZOR] {len(safe_moves)} güvenli hamle bulundu")
         
         if not safe_moves:
-            print("[AI-ZOR] UYARI: Güvenli hamle yok! Normal moda geçiyorum")
-            return self._choose_move_old_hard(board, player, time_limit, start_time)
+            print("[AI-ZOR] UYARI: Güvenli hamle yok! Esnek modda deniyorum")
+            # Esnek güvenlik - zor modda biraz risk alınabilir
+            for mv in val_moves[:10]:
+                tmpb = self._clone_board(board)
+                tmpb.move_piece(player, mv)
+                empties = self._get_empty_positions(tmpb)
+                
+                if len(empties) > 18:
+                    empties = self._prune_obstacles(tmpb, empties, player, 18)
+                
+                for obs in empties[:18]:
+                    tb2 = self._clone_board(tmpb)
+                    tb2.place_obstacle(obs)
+                    
+                    # Esnek: En azından abluka olmamalı ve 2+ hamle kalmalı
+                    if not tb2.is_abluka(player) and len(tb2.get_valid_moves(player)) >= 2:
+                        nxt = self._state_to_features(tb2, player)
+                        qv = self.q_table.get(nxt, 0)
+                        heur = self._evaluate_board(tb2, player) / 1500.0
+                        val = qv + heur
+                        safe_moves.append((mv, obs, val, nxt, qv, heur, 0))
+            
+            if not safe_moves:
+                # Hala yok, normal moda düş
+                print("[AI-ZOR] Son çare: Normal mod stratejisi")
+                return self._choose_move_old_hard(board, player, time_limit, start_time)
         
-        # Sıralama
+        # Sıralama - en iyi hamle en üstte
         safe_moves.sort(key=lambda x: x[2], reverse=True)
-
-        tactical_depth = max(2, self.lookahead_depth + 1)
-        tactical_cap = min(len(safe_moves), max(4, self.max_tactical_candidates))
-        per_candidate_budget = max(0.1, (self.max_time * 0.6) / max(1, tactical_cap))
-
-        enriched = []
-        for mv, obs, base_score, nxt_state, q_val in safe_moves[:tactical_cap]:
-            sim_board = self._simulate_board_after_action(board, player, mv, obs)
-            if not sim_board:
-                continue
-            tactical_value = self._tactical_lookahead(
-                sim_board,
-                player,
-                tactical_depth,
-                per_candidate_budget,
-                maximizing_turn=False
-            )
-            total = base_score + tactical_value * (self.tactical_weight + 0.35)
-            enriched.append((total, mv, obs, nxt_state, q_val, tactical_value, base_score))
-
-        if not enriched:
-            print("[AI-ZOR] Taktik değerlendirme yapılamadı, heuristik en iyi hamle kullanılacak.")
-            best_move, best_obs, best_value, best_state, q_val = safe_moves[0]
-            tactical_component = None
-            total_score = best_value
-            self.last_move_reasoning = "ML => Heuristik fallback"
+        
+        # Exploration (sadece self-play'de)
+        if is_explore and len(safe_moves) > 5:
+            # En iyi %40'lık dilimden seç
+            self.last_move_reasoning = "ML => Epsilon-greedy güvenli exploration"
+            top_portion = max(3, int(len(safe_moves) * 0.4))  # 0.5→0.4 daha dar
+            best_move, best_obs, best_value, best_state, q_val, h_val, dmg = random.choice(safe_moves[:top_portion])
         else:
-            enriched.sort(key=lambda x: x[0], reverse=True)
-            if is_explore:
-                self.last_move_reasoning = "ML => Epsilon-greedy güvenli exploration"
-                top_portion = max(3, int(len(enriched) * 0.5))
-                choice = random.choice(enriched[:top_portion])
-            else:
-                choice = enriched[0]
-
-            best_move, best_obs = choice[1], choice[2]
-            best_state, q_val = choice[3], choice[4]
-            tactical_component = choice[5]
-            best_value = choice[6]
-            total_score = choice[0]
-            if tactical_component is not None:
-                self.last_move_reasoning = (
-                    f"ML => Q({q_val:.2f}) + heur {best_value:.0f} + taktik {tactical_component:.0f}"
-                )
-                if total_score > 900:
-                    self.last_move_reasoning += " | kaçış bırakmayan plan"
-            else:
-                self.last_move_reasoning = "ML => Q + heuristic + safety"
+            # En iyi hamle - kesinkes!
+            best_move, best_obs, best_value, best_state, q_val, h_val, dmg = safe_moves[0]
+            self.last_move_reasoning = "ML => Optimal Q + heuristic"
         
         # Öğrenme (sadece self-play'de)
         if self.current_state and best_state:
@@ -890,8 +869,14 @@ class AIPlayer:
                 if self.learned_move_count % 5 == 0:
                     self.save_model()
         
-        val_s = f"{best_value:.2f} (Q:{q_val:.2f})"
+        # Debug bilgisi
+        val_s = f"{best_value:.3f} (Q:{q_val:.2f}, H:{h_val:.2f}, Dmg:{dmg})"
         self.last_move_reasoning += f" => {val_s}, Qsize={len(self.q_table)}"
+        
+        # En iyi 3 hamleyi logla
+        if len(safe_moves) >= 3:
+            print(f"[AI-ZOR] En iyi 3 skor: {safe_moves[0][2]:.3f}, {safe_moves[1][2]:.3f}, {safe_moves[2][2]:.3f}")
+        
         return best_move, best_obs
 
     def _update_q_value(self, s0, s1, reward):
@@ -969,8 +954,8 @@ class AIPlayer:
 
     def _evaluate_board(self, board, main_player):
         """
-        İyileştirilmiş tahta değerlendirme fonksiyonu
-        Daha gerçekçi stratejik düşünme için ağırlıklar ayarlandı
+        ULTRA İYİLEŞTİRİLMİŞ tahta değerlendirme fonksiyonu
+        Agresif ve dengeli strateji - rakibi ezmeye odaklı
         """
         my_moves = board.get_valid_moves(main_player)
         if not my_moves:
@@ -980,39 +965,47 @@ class AIPlayer:
         if not op_moves:
             return 999999
 
-        # 1. MOBİLİTE (Hareket özgürlüğü) - EN ÖNEMLİ
-        # Daha fazla hamle seçeneği = daha iyi pozisyon
-        mobility_score = (len(my_moves) * 25) - (len(op_moves) * 20)
+        # 1. MOBİLİTE (Hareket özgürlüğü) - REBALANCED
+        # RAKİBİ SINIRLAMAK daha önemli, kendini korumak da önemli ama daha az
+        mobility_score = (len(my_moves) * 30) - (len(op_moves) * 45)  # Rakip daha ağır!
         
-        # Kritik durum: Rakibi çok sınırlandır
+        # Kritik durum: Rakibi çok sınırlandır - DEV BONUS
         if len(op_moves) <= 2:
-            mobility_score += 200  # Rakip neredeyse ablukada
-        elif len(op_moves) <= 4:
-            mobility_score += 80   # Rakip zorlanıyor
+            mobility_score += 400  # Rakip neredeyse ablukada (200→400)
+        elif len(op_moves) <= 3:
+            mobility_score += 250  # Rakip çok zorlanıyor (yeni)
+        elif len(op_moves) <= 5:
+            mobility_score += 120   # Rakip zorlanıyor (80→120)
         
-        # Kendi durumum kritik mi?
+        # Kendi durumum kritik mi? - DAHA TOLERANSlı
         if len(my_moves) <= 2:
-            mobility_score -= 150  # Tehlike!
-        elif len(my_moves) <= 4:
-            mobility_score -= 50   # Dikkatli ol
+            mobility_score -= 100  # Tehlike ama daha az ceza (150→100)
+        elif len(my_moves) <= 3:
+            mobility_score -= 30   # Hafif dikkat (50→30)
 
-        # 2. ALAN KONTROLÜ - BFS ile erişilebilir alan
+        # 2. ALAN KONTROLÜ - BFS ile erişilebilir alan - DAHA ÖNEMLİ
         my_area = self._flood_fill_area(board, main_player)
         op_area = self._flood_fill_area(board, opp)
-        area_score = (my_area - op_area) * 8
+        area_score = (my_area - op_area) * 12  # 8→12
         
         # Alan avantajı büyükse bonus
         if my_area > op_area * 1.5:
-            area_score += 50
+            area_score += 80  # 50→80
+        
+        # Rakibi çok sınırladıysak DEV BONUS
+        if op_area < 8:
+            area_score += 150  # Rakibin alanı küçük!
 
-        # 3. ÇEVRELEME (Rakibi sınırlama)
-        encirclement = self._calculate_encirclement(board, opp) * 12
+        # 3. ÇEVRELEME (Rakibi sınırlama) - ULTRA BONUS
+        encirclement = self._calculate_encirclement(board, opp) * 18  # 12→18
         
         # Rakip iyice çevriliyorsa büyük bonus
         if encirclement > 60:
-            encirclement += 100
+            encirclement += 200  # 100→200
+        elif encirclement > 40:
+            encirclement += 100  # Yeni ara kademe
 
-        # 4. MERKEZ KONTROLÜ - Stratejik pozisyon
+        # 4. MERKEZ KONTROLÜ - Stratejik pozisyon (dinamik)
         mp = board.black_pos if main_player=='B' else board.white_pos
         op = board.black_pos if opp=='B' else board.white_pos
         c = board.size // 2
@@ -1022,58 +1015,100 @@ class AIPlayer:
         op_center_dist = abs(op[0] - c) + abs(op[1] - c)
         
         # Oyun başında merkez önemli, sonda daha az
-        game_progress = len(board.obstacles) / 40.0  # 0 ile 1 arası
-        center_weight = 15 * (1 - game_progress * 0.5)  # Oyun ilerledikçe azal
+        game_progress = len(board.obstacles) / 50.0  # 0 ile 1 arası
+        center_weight = 20 * (1 - game_progress * 0.6)  # 15→20, Oyun ilerledikçe azal
         center_score = (op_center_dist - my_center_dist) * center_weight
 
-        # 5. ENGEL STRATEJİSİ
+        # 5. ENGEL STRATEJİSİ - REBALANCED
         my_obstacles = self._count_surrounding_obstacles(board, mp)
         op_obstacles = self._count_surrounding_obstacles(board, op)
         
         # Rakibin etrafında engel iyi, kendi etrafımda kötü
-        obstacle_score = (op_obstacles - my_obstacles) * 18
+        obstacle_score = (op_obstacles - my_obstacles) * 25  # 18→25
         
-        # Çok fazla engel kendimi köşeye sıkıştırabilir
-        if my_obstacles >= 5:
-            obstacle_score -= 100  # Tehlikeli durum
+        # Çok fazla engel kendimi köşeye sıkıştırabilir - AMA DAHA TOLERANSlı
+        if my_obstacles >= 6:
+            obstacle_score -= 120  # 100→120 ama 5'ten 6'ya çıktı
+        elif my_obstacles >= 5:
+            obstacle_score -= 40  # Yeni - hafif ceza
         
-        # Rakip köşede ve etrafı engellerle doluysa çok iyi
+        # Rakip köşede ve etrafı engellerle doluysa çok iyi - ULTRA BONUS
         if op_obstacles >= 5 and len(op_moves) <= 4:
-            obstacle_score += 120
+            obstacle_score += 180  # 120→180
+        elif op_obstacles >= 4 and len(op_moves) <= 5:
+            obstacle_score += 90  # Yeni ara kademe
 
-        # 6. KÖŞE VE KENAR CEZASI
-        # Köşelerde sıkışmak kötü
+        # 6. KÖŞE VE KENAR CEZASI - REBALANCED
+        # Köşelerde sıkışmak kötü ama mutlak değil
         corner_penalty = 0
         edges = [0, board.size - 1]
         if mp[0] in edges and mp[1] in edges:
-            corner_penalty -= 80  # Köşede olmak tehlikeli
+            # Köşedeyim - hamle sayısına göre ceza
+            if len(my_moves) <= 3:
+                corner_penalty -= 100  # Köşede VE az hamle = kötü
+            else:
+                corner_penalty -= 40   # Köşede ama hamle var = idare eder
         elif mp[0] in edges or mp[1] in edges:
-            corner_penalty -= 25  # Kenarda olmak biraz kötü
+            corner_penalty -= 15  # Kenarda olmak biraz kötü (25→15)
         
-        # Rakip köşedeyse iyi
+        # Rakip köşedeyse ULTRA İYİ
         if op[0] in edges and op[1] in edges:
-            corner_penalty += 60
+            if len(op_moves) <= 3:
+                corner_penalty += 100  # Rakip köşede ve sıkışık!
+            else:
+                corner_penalty += 50   # Rakip köşede
         elif op[0] in edges or op[1] in edges:
-            corner_penalty += 20
+            corner_penalty += 25  # Rakip kenarda (20→25)
 
-        # 7. TAKTİKSEL MESAFE
-        # Oyun sonuna doğru rakibe çok yakın olmak riskli olabilir
+        # 7. TAKTİKSEL MESAFE - AGRESYONA GÖRE
+        # Oyun sonuna doğru rakibe yakın olmak agresif oyunda iyi!
         distance = abs(mp[0] - op[0]) + abs(mp[1] - op[1])
         distance_score = 0
-        if distance <= 2 and len(my_moves) < len(op_moves):
-            distance_score -= 30  # Yakınım ama dezavantajlıyım
-        elif distance >= 5 and len(op_moves) <= 3:
-            distance_score += 40  # Uzaktayım ve rakip sıkışık
+        
+        # Aggression faktörü kullan
+        aggression = getattr(self, 'aggression', 0.5)
+        
+        if aggression > 0.6:  # Agresif mod
+            if distance <= 3 and len(my_moves) >= len(op_moves):
+                distance_score += 40  # Yakınım ve avantajlıyım - iyi!
+            elif distance >= 6:
+                distance_score -= 20  # Çok uzak - rakibe yetişemem
+        else:  # Savunmacı mod
+            if distance <= 2 and len(my_moves) < len(op_moves):
+                distance_score -= 30  # Yakınım ama dezavantajlıyım
+            elif distance >= 5 and len(op_moves) <= 3:
+                distance_score += 40  # Uzaktayım ve rakip sıkışık
 
-        # TOPLAM SKOR
+        # 8. YENİ - KAZANMA POTANSYEL: Sonuca ne kadar yakınım?
+        win_potential = 0
+        
+        # Rakibin durumu kötüyse bonus
+        if len(op_moves) <= 3:
+            win_potential += 150
+        elif len(op_moves) <= 5:
+            win_potential += 70
+        
+        # Benim durumum iyiyse bonus
+        if len(my_moves) >= 8:
+            win_potential += 50
+        
+        # Hamle farkı büyükse bonus
+        move_diff = len(my_moves) - len(op_moves)
+        if move_diff >= 4:
+            win_potential += 100
+        elif move_diff >= 2:
+            win_potential += 40
+
+        # TOPLAM SKOR - YENİ AĞIRLIKLAR
         total = (
-            mobility_score +      # En önemli
-            area_score +          
-            encirclement +        
-            center_score +        
-            obstacle_score +      
-            corner_penalty +      
-            distance_score
+            mobility_score * 1.2 +    # En önemli (1.0→1.2)
+            area_score * 1.1 +        # Çok önemli (1.0→1.1)
+            encirclement * 1.15 +     # Çok önemli (1.0→1.15)
+            center_score * 0.8 +      # Orta önemli (1.0→0.8)
+            obstacle_score * 1.0 +    # Önemli
+            corner_penalty * 0.9 +    # Orta önemli (1.0→0.9)
+            distance_score * 0.7 +    # Az önemli (1.0→0.7)
+            win_potential * 1.3       # ÇOK ÖNEMLİ - yeni!
         )
         
         return total
@@ -1283,8 +1318,8 @@ class AIPlayer:
 
     def _prune_obstacles(self, board, empties, player, top_k=6):
         """
-        STRATEJİK engel seçimi - Rakibi sınırlamaya odaklanır
-        Alakasız (uzak) engelleri reddeder
+        ULTRA İYİLEŞTİRİLMİŞ STRATEJİK engel seçimi
+        RAKİBİ EZMEye odaklı - çok agresif ve akıllı
         """
         scored = []
         opp = ('W' if player == 'B' else 'B')
@@ -1292,16 +1327,21 @@ class AIPlayer:
         opp_pos = board.black_pos if opp == 'B' else board.white_pos
         my_pos = board.black_pos if player == 'B' else board.white_pos
         
-        # Maksimum stratejik mesafe - bundan uzaktaki engeller alakasız
-        MAX_STRATEGIC_DISTANCE = 4
+        # Maksimum stratejik mesafe - zorluk seviyesine göre
+        if self.difficulty == 'hard':
+            MAX_STRATEGIC_DISTANCE = 5  # Zor mod: 5 kare (daha geniş)
+        elif self.difficulty == 'normal':
+            MAX_STRATEGIC_DISTANCE = 4  # Normal: 4 kare
+        else:
+            MAX_STRATEGIC_DISTANCE = 3  # Kolay: 3 kare (daha dar)
         
         for e in empties:
             # Rakibe olan mesafe
             dist_to_opp = abs(e[0] - opp_pos[0]) + abs(e[1] - opp_pos[1])
             
-            # ÇOK UZAKSA REDDET - Alakasız engel
+            # ÇOK UZAKSA REDDET
             if dist_to_opp > MAX_STRATEGIC_DISTANCE:
-                continue  # Bu engeli hiç değerlendirme
+                continue
             
             tb = self._clone_board(board)
             tb.place_obstacle(e)
@@ -1312,37 +1352,51 @@ class AIPlayer:
             
             score = 0
             
-            # 1. RAKİBİN HAMLE SAYISINI AZALT (EN ÖNEMLİ - 3x daha önemli)
+            # 1. RAKİBİN HAMLE SAYISINI AZALT - ULTRA ÖNEMLİ
             after_op = len(tb.get_valid_moves(opp))
             mobility_reduction = base_opm - after_op
-            score += mobility_reduction * 150  # Çok daha yüksek ağırlık!
+            score += mobility_reduction * 200  # 150→200 DAHA YÜKSEK!
             
-            # Rakibi çok sınırladıysak dev bonus
-            if after_op <= 3 and mobility_reduction > 0:
-                score += 300  # Rakip sıkışıyor!
-            elif after_op <= 5 and mobility_reduction > 0:
-                score += 150  # İyi sınırlama
+            # Rakibi çok sınırladıysak MEGA BONUS
+            if after_op == 0:
+                score += 10000  # Ablukaya aldık!
+            elif after_op == 1:
+                score += 800  # 1 hamle kaldı
+            elif after_op == 2:
+                score += 500  # 2 hamle kaldı (300→500)
+            elif after_op <= 4 and mobility_reduction > 0:
+                score += 250  # İyi sınırlama (150→250)
+            elif after_op <= 6 and mobility_reduction > 0:
+                score += 120  # Orta sınırlama (yeni)
             
-            # 2. RAKİBE YAKINLIK (ÇOK ÖNEMLİ)
+            # 2. RAKİBE YAKINLIK - ULTRA BONUS
             if dist_to_opp == 1:
-                score += 200  # Hemen yanı - en değerli!
+                score += 250  # Hemen yanı (200→250)
             elif dist_to_opp == 2:
-                score += 120  # Çok yakın
+                score += 150  # Çok yakın (120→150)
             elif dist_to_opp == 3:
-                score += 60   # Yakın
+                score += 80   # Yakın (60→80)
             elif dist_to_opp == 4:
-                score += 20   # Orta mesafe
-            # dist > 4 zaten reddedildi
+                score += 35   # Orta mesafe (20→35)
+            elif dist_to_opp == 5:
+                score += 10   # Uzak ama kabul edilebilir (yeni)
             
-            # 3. Benden uzak engeller tercih et (ama çok önemli değil)
+            # 3. BENDEN UZAK engeller tercih et - REBALANCED
             dist_to_me = abs(e[0] - my_pos[0]) + abs(e[1] - my_pos[1])
-            if dist_to_me >= 3:
-                score += 40
+            if dist_to_me >= 4:
+                score += 60  # Benden çok uzak (40→60)
+            elif dist_to_me >= 3:
+                score += 40  # Benden uzak (eskiden yoktu)
+            elif dist_to_me == 2:
+                score += 10  # İdare eder (yeni)
             elif dist_to_me <= 1:
-                score -= 80  # Kendime çok yakınsa kötü
+                # Kendime çok yakın - ama stratejik olabilir!
+                if mobility_reduction >= 2:
+                    score -= 30  # Rakibe çok zarar veriyorsam az ceza (-80→-30)
+                else:
+                    score -= 60  # Pek fayda yoksa orta ceza
             
-            # 4. RAKİBİN KAÇIŞ YOLLARINI KES
-            # Rakibin hareket edebileceği yönleri engelle
+            # 4. RAKİBİN KAÇIŞ YOLLARINI KES - ULTRA ÖNEMLİ
             blocking_value = 0
             
             # Rakibin olası hamle pozisyonlarını kontrol et
@@ -1354,35 +1408,36 @@ class AIPlayer:
                     target_r = opp_pos[0] + dr
                     target_c = opp_pos[1] + dc
                     
-                    # Bu pozisyon engelin çok yakınında mı?
                     if (0 <= target_r < board.size and 
                         0 <= target_c < board.size):
                         dist_to_target = abs(e[0] - target_r) + abs(e[1] - target_c)
-                        if dist_to_target <= 1:
-                            blocking_value += 50  # Bu hamle yolunu tıkıyor
+                        if dist_to_target == 0:
+                            blocking_value += 100  # Direkt hamle pozisyonunu tıkıyoruz!
+                        elif dist_to_target <= 1:
+                            blocking_value += 60  # Bu hamle yolunu tıkıyor (50→60)
             
             score += blocking_value
             
-            # 5. KÖŞEYE İTMEK
+            # 5. KÖŞEYE İTMEK - AGRESYF
             corners = [(0, 0), (0, board.size-1), (board.size-1, 0), (board.size-1, board.size-1)]
             best_corner_push = 0
             
             for corner in corners:
                 corner_dist_opp = abs(opp_pos[0] - corner[0]) + abs(opp_pos[1] - corner[1])
                 
-                # Rakip köşeye yakınsa (<= 4)
-                if corner_dist_opp <= 4:
+                # Rakip köşeye yakınsa
+                if corner_dist_opp <= 5:  # 4→5 daha geniş
                     corner_dist_obs = abs(e[0] - corner[0]) + abs(e[1] - corner[1])
                     
                     # Engel, rakiple köşe arasındaysa
                     if corner_dist_obs < corner_dist_opp:
-                        push_value = 80 - (corner_dist_opp * 10)  # Daha yakınsa daha değerli
+                        push_value = 120 - (corner_dist_opp * 12)  # 80→120, daha değerli
                         best_corner_push = max(best_corner_push, push_value)
             
             score += best_corner_push
             
-            # 6. GEÇİT KAPATMA (rakip yakınındaysa)
-            if dist_to_opp <= 3:
+            # 6. GEÇİT KAPATMA - ULTRA BONUS
+            if dist_to_opp <= 4:  # 3→4 daha geniş
                 neighbors_with_obstacles = 0
                 for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
                     nr, nc = e[0] + dr, e[1] + dc
@@ -1390,30 +1445,61 @@ class AIPlayer:
                         if board.grid[nr][nc] in ('X', 'R'):
                             neighbors_with_obstacles += 1
                 
-                if neighbors_with_obstacles >= 2:
-                    score += 100  # Dar geçit kapatma bonusu
+                if neighbors_with_obstacles >= 3:
+                    score += 180  # Çok dar geçit! (yeni)
+                elif neighbors_with_obstacles >= 2:
+                    score += 120  # Dar geçit kapatma (100→120)
                 elif neighbors_with_obstacles == 1:
-                    score += 40   # Duvar oluşturma başlangıcı
+                    score += 50   # Duvar oluşturma (40→50)
             
-            # 7. MERKEZ KONTROLÜ (sadece oyun başındaysa)
+            # 7. MERKEZ KONTROLÜ - Dinamik
             total_obstacles = len(board.obstacles)
-            if total_obstacles < 15:  # Oyun başı
+            if total_obstacles < 20:  # Oyun başı/ortası (15→20)
                 center = board.size // 2
-                # Rakip merkeze uzaksa, merkezi kontrol et
                 opp_to_center = abs(opp_pos[0] - center) + abs(opp_pos[1] - center)
+                
                 if opp_to_center > 3:
+                    # Rakip merkeze uzak, merkezi kontrol et
                     obs_to_center = abs(e[0] - center) + abs(e[1] - center)
                     if obs_to_center <= 2:
-                        score += 30  # Merkezi kontrol et
+                        score += 40  # Merkezi kontrol et (30→40)
+                    elif obs_to_center <= 3:
+                        score += 20  # Merkeze yakın (yeni)
+                else:
+                    # Rakip merkezdeyse, onu sıkıştır (merkeze engel koyma)
+                    obs_to_center = abs(e[0] - center) + abs(e[1] - center)
+                    if obs_to_center >= 3:
+                        score += 30  # Merkezden uzak engel, rakibi daralt
             
-            # 8. GENEL POZİSYON DEĞERLENDİRMESİ (küçük ağırlık)
+            # 8. YENİ - ALAN BÖLME STRATEJİSİ
+            # Tahtayı bölerek rakibi küçük alana hapsedebilir miyiz?
+            if total_obstacles >= 10:  # Oyun ilerlediyse
+                # Engel tahtayı kritik noktada mı böler?
+                # Basit heuristik: Merkeze yakın ve rakibe yakın
+                center = board.size // 2
+                obs_to_center = abs(e[0] - center) + abs(e[1] - center)
+                
+                if obs_to_center <= 2 and dist_to_opp <= 3:
+                    # Bu engel tahtayı bölme potansiyeli var
+                    score += 100  # Alan bölme bonusu
+            
+            # 9. YENİ - RAKİBİN ALAN ERİŞİMİNİ AZALT
+            # Bu engelden sonra rakibin erişebileceği alan ne kadar azalıyor?
+            opp_area_before = self._flood_fill_area(board, opp)
+            opp_area_after = self._flood_fill_area(tb, opp)
+            area_reduction = opp_area_before - opp_area_after
+            
+            if area_reduction > 0:
+                score += area_reduction * 15  # Her kare için bonus (yeni!)
+            
+            # 10. GENEL POZİSYON DEĞERLENDİRMESİ - Az etki
             general_eval = self._evaluate_board(tb, player)
-            score += general_eval / 30.0  # Az etki
+            score += general_eval / 40.0  # 30→40, daha az etki
             
             scored.append((e, score))
         
         if not scored:
-            # Hiç stratejik engel yok, en yakınları al
+            # Hiç stratejik engel yok
             print(f"[ENGEL] UYARI: Stratejik engel yok! En yakın {top_k} engel seçiliyor")
             close_empties = sorted(empties, 
                                   key=lambda pos: abs(pos[0] - opp_pos[0]) + abs(pos[1] - opp_pos[1]))
@@ -1424,6 +1510,8 @@ class AIPlayer:
         # Debug: En iyi 3 engelin skorunu göster
         if len(scored) >= 3:
             print(f"[ENGEL] En iyi 3: {scored[0][1]:.0f}, {scored[1][1]:.0f}, {scored[2][1]:.0f}")
+        elif len(scored) >= 1:
+            print(f"[ENGEL] En iyi: {scored[0][1]:.0f}")
         
         return [x[0] for x in scored[:top_k]]
 
@@ -1449,104 +1537,173 @@ class AIPlayer:
     
     def _is_safe_move(self, board, player, move_pos, obstacle_pos):
         """
-        Hamle güvenli mi? Gelecek turları simüle ederek kontrol et.
+        ULTRA İYİLEŞTİRİLMİŞ güvenlik kontrolü
         
-        Bu fonksiyon:
-        1. Hamlede sonra kendimiz ablukada mı kontrol eder
-        2. Hamle sonrası en az min_safe_moves kadar hamle kalıyor mu kontrol eder
-        3. Gelecek N tur için simülasyon yapar
-        4. Köşe/kenar tehlikelerini kontrol eder
+        Agresif ama akıllı:
+        1. Direkt abluka kontrolü
+        2. Minimum hamle kontrolü (zorluk seviyesine göre)
+        3. Köşe/kenar risk analizi
+        4. Gelecek turları simüle et (akıllıca)
+        5. Risk-getiri dengesi
         """
         # Hamleyi simüle et
         test_board = self._clone_board(board)
         test_board.move_piece(player, move_pos)
         test_board.place_obstacle(obstacle_pos)
         
-        # 1. Direkt abluka kontrolü
+        opponent = 'W' if player == 'B' else 'B'
+        
+        # 1. Direkt abluka kontrolü - HER ZAMAN GEÇERLİ
         if test_board.is_abluka(player):
             return False, "Direkt abluka"
         
-        # 2. Minimum hamle sayısı kontrolü
+        # 2. Minimum hamle sayısı kontrolü - ZORLUK SEVİYESİNE GÖRE
         my_moves = test_board.get_valid_moves(player)
+        
+        # Çok kritik durum: 0 hamle = kesinlikle ret
+        if len(my_moves) == 0:
+            return False, "Hiç hamle kalmıyor"
+        
+        # Minimum hamle kontrolü (zorluk seviyesine göre)
         if len(my_moves) < self.min_safe_moves:
-            return False, f"Çok az hamle ({len(my_moves)} < {self.min_safe_moves})"
+            # AMA: Eğer rakibi ablukaya alıyorsam, kabul et!
+            opp_moves_after = test_board.get_valid_moves(opponent)
+            if len(opp_moves_after) <= 2:
+                # Rakip çok sıkışık, riski göze al
+                pass  # Kabul et
+            else:
+                return False, f"Çok az hamle ({len(my_moves)} < {self.min_safe_moves})"
         
-        # 3. Köşe tehlikesi kontrolü
+        # 3. AKILLI köşe/kenar risk analizi
+        # Köşe tehlikesi - ama hamle sayısına bağlı
         if self._is_corner_position(move_pos, board.size):
-            # Köşedeysek, çıkış yolu var mı?
             corner_moves = len(my_moves)
-            if corner_moves < 4:  # Köşede ve az hamle = tehlikeli
-                return False, f"Köşe tehlikesi (sadece {corner_moves} hamle)"
+            
+            # Zor modda daha agresif, kolay modda daha temkinli
+            if self.difficulty == 'hard':
+                threshold = 2  # Zor mod: 2+ hamle yeterli
+            elif self.difficulty == 'normal':
+                threshold = 3  # Normal mod: 3+ hamle
+            else:
+                threshold = 4  # Kolay mod: 4+ hamle
+            
+            if corner_moves < threshold:
+                # AMA: Eğer rakibi de köşeye sıkıştırıyorsam...
+                opp_pos = test_board.black_pos if opponent == 'B' else test_board.white_pos
+                if self._is_corner_position(opp_pos, board.size):
+                    opp_moves_after = len(test_board.get_valid_moves(opponent))
+                    if opp_moves_after < corner_moves:
+                        pass  # Rakip daha kötü durumda, kabul et
+                    else:
+                        return False, f"Köşe tehlikesi (sadece {corner_moves} hamle)"
+                else:
+                    return False, f"Köşe tehlikesi (sadece {corner_moves} hamle)"
         
-        # 4. Kenar tehlikesi - eğer kenara gidiyorsak en az 5 hamle olmalı
+        # 4. Kenar risk analizi - DAHA ESNEK
         if self._is_edge_position(move_pos, board.size):
-            if len(my_moves) < 5:
-                return False, f"Kenar tehlikesi (sadece {len(my_moves)} hamle)"
+            edge_threshold = 3 if self.difficulty == 'hard' else 4
+            
+            if len(my_moves) < edge_threshold:
+                # Rakibin durumunu kontrol et
+                opp_moves_after = len(test_board.get_valid_moves(opponent))
+                if opp_moves_after <= 4:
+                    pass  # Rakip de zorlanıyor, kabul et
+                else:
+                    return False, f"Kenar tehlikesi (sadece {len(my_moves)} hamle)"
         
-        # 5. Engel kendi pozisyonuma çok yakın mı? - DAHA ESNEKLEŞTİRİLDİ
+        # 5. Kendime çok yakın engel kontrolü - DAHA TOLERANSlı
         my_pos = move_pos
         dist_to_obstacle = abs(my_pos[0] - obstacle_pos[0]) + abs(my_pos[1] - obstacle_pos[1])
         
         if dist_to_obstacle <= 1:
-            # Hemen yanıma engel koyuyorum - ama bu stratejik olabilir!
-            # Sadece etrafım TAMAMEN kapanıyorsa reddet
+            # Hemen yanıma engel koyuyorum
             surrounding_obstacles = self._count_surrounding_obstacles(test_board, my_pos)
             
-            if surrounding_obstacles >= 6:  # 6+ komşu engel = çok tehlikeli (eskiden 4)
-                return False, f"Etrafım çok engelli ({surrounding_obstacles}/8)"
+            # Zorluk seviyesine göre tolerans
+            if self.difficulty == 'hard':
+                max_surrounding = 7  # Zor mod: 7'ye kadar kabul (çok agresif!)
+            elif self.difficulty == 'normal':
+                max_surrounding = 6  # Normal mod: 6'ya kadar
+            else:
+                max_surrounding = 5  # Kolay mod: 5'e kadar
             
-            # 5 komşu engel bile olsa, hala 3 yönde hareket edebiliyorum demektir
-            # Bu kabul edilebilir
+            if surrounding_obstacles >= max_surrounding:
+                return False, f"Etrafım çok engelli ({surrounding_obstacles}/8)"
         
-        # 6. Gelecek turları simüle et
-        opponent = 'W' if player == 'B' else 'B'
+        # 6. Gelecek turları simüle et - AKILLICA
+        # Zorluk seviyesine göre kontrol sayısı
+        check_turns = self.future_turns_check
         
-        for future_turn in range(self.future_turns_check):
+        for future_turn in range(check_turns):
             # Rakibin en kötü hamlesini simüle et
             opp_moves = test_board.get_valid_moves(opponent)
             if not opp_moves:
-                break  # Rakip ablukada, güzel!
+                break  # Rakip ablukada, harika!
             
-            # Rakip beni en çok sıkıştıran hamleyi yapar
+            # Rakibin beni en çok sıkıştıran hamlesini bul
             worst_case_my_moves = len(my_moves)
-            worst_obstacle = None
-            worst_move = None
+            worst_scenario_board = None
             
-            for opp_move in opp_moves:
+            # İlk N hamleyi kontrol et (zorluk seviyesine göre)
+            check_count = min(len(opp_moves), 3 if self.difficulty == 'easy' else 5)
+            
+            for opp_move in opp_moves[:check_count]:
                 temp_b = self._clone_board(test_board)
                 temp_b.move_piece(opponent, opp_move)
                 empties = self._get_empty_positions(temp_b)
-                if len(empties) > 8:
-                    empties = self._prune_obstacles(temp_b, empties, opponent, 8)
                 
-                for obs in empties:
+                # İlk 8 engeli kontrol et
+                for obs in empties[:8]:
                     temp_b2 = self._clone_board(temp_b)
                     temp_b2.place_obstacle(obs)
                     
                     future_my_moves = len(temp_b2.get_valid_moves(player))
+                    
                     if future_my_moves < worst_case_my_moves:
                         worst_case_my_moves = future_my_moves
-                        worst_obstacle = obs
-                        worst_move = opp_move
+                        worst_scenario_board = temp_b2
                         
+                        # Eğer ablukaya giriyorsam direkt ret
                         if worst_case_my_moves == 0:
+                            # AMA: Rakip de ablukaya giriyorsa?
+                            if temp_b2.is_abluka(opponent):
+                                continue  # Berabere, devam et
                             return False, f"Gelecek tur {future_turn + 1}'de abluka riski"
             
             # Gelecek turda çok az hamlem kalıyor mu?
-            if worst_case_my_moves < self.min_safe_moves - 1:
-                return False, f"Gelecek tur {future_turn + 1}'de risk ({worst_case_my_moves} hamle)"
+            # Zorluk seviyesine göre minimum
+            future_min = max(1, self.min_safe_moves - 1)
+            
+            if worst_case_my_moves < future_min:
+                # Rakibin durumunu da kontrol et
+                if worst_scenario_board:
+                    opp_future_moves = len(worst_scenario_board.get_valid_moves(opponent))
+                    
+                    # Eğer rakip de sıkışıyorsa kabul et
+                    if opp_future_moves <= worst_case_my_moves + 1:
+                        pass  # Rakip benimle aynı durumda veya daha kötü
+                    else:
+                        return False, f"Gelecek tur {future_turn + 1}'de risk ({worst_case_my_moves} hamle)"
             
             # Bir sonraki tur için tahtayı güncelle
-            if worst_obstacle and worst_move:
-                test_board.move_piece(opponent, worst_move)
-                test_board.place_obstacle(worst_obstacle)
-                
+            if worst_scenario_board:
+                test_board = worst_scenario_board
                 my_moves = test_board.get_valid_moves(player)
                 if not my_moves:
                     return False, f"Gelecek tur {future_turn + 1}'de abluka"
-            else:
-                break
         
+        # 7. YENİ - RİSK-GETİRİ ANALİZİ
+        # Bu hamle riskli ama rakibe çok zarar veriyorsa kabul et
+        opp_moves_before = len(board.get_valid_moves(opponent))
+        opp_moves_after = len(test_board.get_valid_moves(opponent))
+        damage_to_opponent = opp_moves_before - opp_moves_after
+        
+        # Eğer rakibe 3+ hamle kaybettiriyorsam ve benim 2+ hamlem varsa
+        # Risk kabul edilebilir
+        if damage_to_opponent >= 3 and len(my_moves) >= 2:
+            return True, f"Agresif hamle (Rakip: -{damage_to_opponent}, Ben: {len(my_moves)})"
+        
+        # Tüm kontroller geçildi
         return True, "Güvenli"
     
     def _get_escape_routes(self, board, player):

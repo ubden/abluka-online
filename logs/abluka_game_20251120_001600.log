@@ -1,0 +1,423 @@
+Abluka AI Log - 2025-11-20 00:16:00
+Mod (Difficulty): normal
+------------------------------------------------
+
+Hamle #1
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 3)
+Engel: (5, 3)
+Strateji: Normal => Optimal hamle (skor: 1195)
+Tahta Durumu:
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #2
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 4)
+Engel: (2, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . X . . .
+. . . . . . .
+. . . . . . .
+. . . X W . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #3
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 4)
+Engel: (5, 5)
+Strateji: Normal => Optimal hamle (skor: 388)
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . X . . .
+. . . . . . .
+. . . . . . .
+. . . X W . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #4
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 5)
+Engel: (3, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . X B . .
+. . . . X . .
+. . . . . W .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #5
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 5)
+Engel: (4, 4)
+Strateji: Normal => Optimal hamle (skor: 1192)
+Tahta Durumu:
+. . . . . . .
+. . . . . . .
+. . . X B . .
+. . . . X . .
+. . . . . W .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #6
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 5)
+Engel: (2, 6)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %44.3
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. . . X . . X
+. . . . X W .
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #7
+Oyuncu: AI (B)
+Taş Hamlesi: (2, 4)
+Engel: (3, 6)
+Strateji: Normal => Optimal hamle (skor: 1817)
+Tahta Durumu:
+. . . . . . .
+. . . . . B .
+. . . X . . X
+. . . . X W .
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #8
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 5)
+Engel: (1, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %45.0
+Tahta Durumu:
+. . . . . . .
+. . . . . X .
+. . . X B W X
+. . . . X . X
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #9
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 4)
+Engel: (3, 5)
+Strateji: Normal => Optimal hamle (skor: 2056)
+Tahta Durumu:
+. . . . . . .
+. . . . . X .
+. . . X B W X
+. . . . X . X
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #10
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 4)
+Engel: (0, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %45.0
+Tahta Durumu:
+. . . . . X .
+. . . . B X .
+. . . X W . X
+. . . . X X X
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #11
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 3)
+Engel: (2, 5)
+Strateji: Normal => Optimal hamle (skor: 2419)
+Tahta Durumu:
+. . . . . X .
+. . . . B X .
+. . . X W . X
+. . . . X X X
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #12
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (2, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %43.3
+Tahta Durumu:
+. . . . . X .
+. . . B . X .
+. . X X . X X
+. . . W X X X
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #13
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 2)
+Engel: (4, 2)
+Strateji: Normal => Optimal hamle (skor: 2113)
+Tahta Durumu:
+. . . . . X .
+. . . B . X .
+. . X X . X X
+. . . W X X X
+. . . . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #14
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (2, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %46.0
+Tahta Durumu:
+. . . . . X .
+. . B . . X .
+. X X X . X X
+. . W . X X X
+. . X . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #15
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 3)
+Engel: (4, 1)
+Strateji: Normal => Optimal hamle (skor: 2174)
+Tahta Durumu:
+. . . . . X .
+. . B . . X .
+. X X X . X X
+. . W . X X X
+. . X . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #16
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (2, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %38.0
+Tahta Durumu:
+. . . . . X .
+. . . B . X .
+. X X X X X X
+. . . W X X X
+. X X . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #17
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 2)
+Engel: (2, 0)
+Strateji: Normal => Optimal hamle (skor: 2785)
+Tahta Durumu:
+. . . . . X .
+. . . B . X .
+. X X X X X X
+. . . W X X X
+. X X . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #18
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (1, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . . . . X .
+. . B X . X .
+X X X X X X X
+. . . . X X X
+. X X W X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #19
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 1)
+Engel: (5, 4)
+Strateji: Normal => Optimal hamle (skor: 2470)
+Tahta Durumu:
+. . . . . X .
+. . B X . X .
+X X X X X X X
+. . . . X X X
+. X X W X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #20
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 2)
+Engel: (0, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+. . X . . X .
+. B . X . X .
+X X X X X X X
+. . . . X X X
+. X X . X . .
+. . W X X X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #21
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 1)
+Engel: (6, 3)
+Strateji: Normal => Optimal hamle (skor: 2171)
+Tahta Durumu:
+. . X . . X .
+. B . X . X .
+X X X X X X X
+. . . . X X X
+. X X . X . .
+. . W X X X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #22
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (1, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. B X . . X .
+. . X X . X .
+X X X X X X X
+. . . . X X X
+. X X W X . .
+. . . X X X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #23
+Oyuncu: AI (B)
+Taş Hamlesi: (1, 0)
+Engel: (5, 2)
+Strateji: Normal => Optimal hamle (skor: 3133)
+Tahta Durumu:
+. B X . . X .
+. . X X . X .
+X X X X X X X
+. . . . X X X
+. X X W X . .
+. . . X X X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #24
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (1, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %60.0
+Tahta Durumu:
+. . X . . X .
+B X X X . X .
+X X X X X X X
+. . W . X X X
+. X X . X . .
+. . X X X X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #25
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 1)
+Engel: (3, 1)
+Strateji: Normal => Optimal hamle (skor: 2922)
+Tahta Durumu:
+. . X . . X .
+B X X X . X .
+X X X X X X X
+. . W . X X X
+. X X . X . .
+. . X X X X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #26
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (1, 0)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. B X . . X .
+X X X X . X .
+X X X X X X X
+. X . . X X X
+. X X W X . .
+. . X X X X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #27
+Oyuncu: AI (B)
+Taş Hamlesi: (0, 0)
+Engel: (0, 4)
+Strateji: Kolay => Rastgele acil hamle
+Tahta Durumu:
+. B X . . X .
+X X X X . X .
+X X X X X X X
+. X . . X X X
+. X X W X . .
+. . X X X X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #28
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 2)
+Engel: (0, 1)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %95.0
+Tahta Durumu:
+B X X . X X .
+X X X X . X .
+X X X X X X X
+. X W . X X X
+. X X . X . .
+. . X X X X .
+. . . X . . .
+------------------------------------------------
