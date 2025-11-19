@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "========================================"
-echo "Abluka Oyunu - EXE Build Script"
+echo "Abluka Oyunu - Build Script"
 echo "========================================"
 echo ""
 
@@ -21,14 +21,7 @@ rm -rf build dist Abluka.spec
 
 echo ""
 echo "[3/4] Executable oluşturuluyor..."
-python3 -m PyInstaller --name="Abluka" \
-    --windowed \
-    --onefile \
-    --add-data "abluka/assets:abluka/assets" \
-    --hidden-import=pygame \
-    --hidden-import=numpy \
-    --collect-data pygame \
-    abluka/main.py
+python3 -m PyInstaller --name=Abluka --windowed --onefile --add-data "abluka/assets:abluka/assets" --hidden-import=pygame --hidden-import=numpy --collect-data pygame abluka/main.py
 
 if [ $? -ne 0 ]; then
     echo ""

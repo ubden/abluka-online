@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -27,20 +30,19 @@ jobs:
     
     - name: Build executable
       run: |
-        pyinstaller --name="Abluka" ^
-          --windowed ^
-          --onefile ^
-          --icon=abluka/assets/icon.ico ^
-          --add-data "abluka/assets;abluka/assets" ^
-          --hidden-import=pygame ^
-          --hidden-import=numpy ^
-          --collect-data pygame ^
-          abluka/main.py
+        pyinstaller --name=Abluka --windowed --onefile --add-data "abluka/assets;abluka/assets" --hidden-import=pygame --hidden-import=numpy --collect-data pygame abluka/main.py
+      shell: cmd
     
-    - name: Test executable
+    - name: Test executable exists
       run: |
-        dist/Abluka.exe --help
-      continue-on-error: true
+        if (Test-Path "dist/Abluka.exe") {
+          Write-Host "✓ Abluka.exe created successfully"
+          (Get-Item "dist/Abluka.exe").Length / 1MB
+          Write-Host "MB"
+        } else {
+          Write-Host "✗ Abluka.exe not found"
+          exit 1
+        }
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
@@ -83,17 +85,12 @@ jobs:
     
     - name: Build executable
       run: |
-        pyinstaller --name="Abluka" \
-          --windowed \
-          --onefile \
-          --add-data "abluka/assets:abluka/assets" \
-          --hidden-import=pygame \
-          --hidden-import=numpy \
-          --collect-data pygame \
-          abluka/main.py
+        pyinstaller --name=Abluka --windowed --onefile --add-data "abluka/assets:abluka/assets" --hidden-import=pygame --hidden-import=numpy --collect-data pygame abluka/main.py
     
     - name: Make executable
-      run: chmod +x dist/Abluka
+      run: |
+        chmod +x dist/Abluka
+        ls -lh dist/Abluka
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4

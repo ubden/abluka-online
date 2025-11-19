@@ -24,14 +24,7 @@ if exist Abluka.spec del Abluka.spec
 
 echo.
 echo [3/4] EXE dosyasi olusturuluyor...
-pyinstaller --name="Abluka" ^
-    --windowed ^
-    --onefile ^
-    --add-data "abluka/assets;abluka/assets" ^
-    --hidden-import=pygame ^
-    --hidden-import=numpy ^
-    --collect-data pygame ^
-    abluka/main.py
+pyinstaller --name=Abluka --windowed --onefile --add-data "abluka/assets;abluka/assets" --hidden-import=pygame --hidden-import=numpy --collect-data pygame abluka/main.py
 
 if errorlevel 1 (
     echo.
