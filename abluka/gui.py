@@ -9,25 +9,32 @@ from abluka.ai_player import AIPlayer
 from abluka.sound_manager import SoundManager
 
 class AblukaGUI:
-    # Colors - Premium color scheme
+    # Colors - Modern Premium Color Scheme
     WHITE = (255, 255, 255)
-    BLACK = (0, 0, 0)
-    RED = (220, 53, 69)
-    LIGHT_RED = (255, 150, 150)
-    GRAY = (240, 240, 245)
-    DARK_GRAY = (52, 58, 64)
-    LIGHT_BLUE = (13, 110, 253)
-    GREEN = (40, 167, 69)
-    YELLOW = (255, 193, 7)
-    MENU_BG = (33, 37, 41)
-    BUTTON_COLOR = (52, 58, 64)
-    BUTTON_HOVER = (73, 80, 87)
-    GOLD = (255, 215, 0)
-    SILVER = (192, 192, 192)
-    BRONZE = (205, 127, 50)
-    BOARD_BG = (240, 240, 240)
-    BOARD_LINES = (52, 58, 64)
+    BLACK = (15, 15, 25)
+    RED = (239, 68, 68)  # Modern kırmızı
+    LIGHT_RED = (252, 165, 165)
+    GRAY = (243, 244, 246)
+    DARK_GRAY = (31, 41, 55)
+    LIGHT_BLUE = (59, 130, 246)
+    GREEN = (34, 197, 94)  # Canlı yeşil
+    YELLOW = (251, 191, 36)
+    MENU_BG = (17, 24, 39)  # Daha koyu ve modern
+    BUTTON_COLOR = (55, 65, 81)
+    BUTTON_HOVER = (75, 85, 99)
+    GOLD = (251, 191, 36)  # Daha modern altın
+    SILVER = (203, 213, 225)
+    BRONZE = (180, 83, 9)
+    BOARD_BG = (249, 250, 251)  # Daha açık tahta
+    BOARD_LINES = (71, 85, 105)
     TRANSPARENT_WHITE = (255, 255, 255, 180)
+    
+    # Yeni renkler
+    ACCENT_PRIMARY = (99, 102, 241)  # İndigo
+    ACCENT_SECONDARY = (139, 92, 246)  # Mor
+    SUCCESS = (16, 185, 129)
+    WARNING = (245, 158, 11)
+    DANGER = (239, 68, 68)
     
     def __init__(self, width=1000, height=950):
         pygame.init()
@@ -75,8 +82,9 @@ class AblukaGUI:
         self.animation_end = None
         self.animation_piece = None
         self.animation_progress = 0
-        self.animation_speed = 0.3  # seconds
+        self.animation_speed = 0.25  # Daha hızlı animasyon (0.25 saniye)
         self.animation_timer = 0
+        self.animation_easing = 'ease_out'  # Animasyon easing tipi
         
         # Visual effects
         self.hover_button = None
@@ -211,7 +219,18 @@ class AblukaGUI:
             if self.animation_active:
                 # Calculate progress based on elapsed time
                 elapsed = (current_time - self.animation_timer) / 1000.0  # Convert to seconds
-                self.animation_progress = min(elapsed / self.animation_speed, 1.0)
+                raw_progress = min(elapsed / self.animation_speed, 1.0)
+                
+                # Easing function - ease out cubic için daha yumuşak hareket
+                if self.animation_easing == 'ease_out':
+                    self.animation_progress = 1 - (1 - raw_progress) ** 3
+                elif self.animation_easing == 'ease_in_out':
+                    if raw_progress < 0.5:
+                        self.animation_progress = 4 * raw_progress ** 3
+                    else:
+                        self.animation_progress = 1 - (-2 * raw_progress + 2) ** 3 / 2
+                else:  # linear
+                    self.animation_progress = raw_progress
                 
                 if self.animation_progress >= 1.0:
                     # Animation complete
@@ -983,22 +1002,35 @@ class AblukaGUI:
             pygame.draw.circle(self.screen, self.GOLD, (dot_x, dot_y), 3)
     
     def _draw_board(self):
-        """Draw the game board with premium styling"""
+        """Modern ve şık tahta çizimi"""
         # Calculate board size and position (centered)
         board_width = self.board_size * self.square_size
         board_height = board_width
         
-        # Calculate outer frame for shadow effect
-        shadow_offset = 8
-        outer_rect = pygame.Rect(
+        # Daha belirgin gölge efekti
+        shadow_offset = 10
+        shadow_rect = pygame.Rect(
             self.board_left - 25 + shadow_offset, 
             self.board_top - 25 + shadow_offset, 
             board_width + 50, 
             board_height + 50
         )
-        pygame.draw.rect(self.screen, (20, 20, 20, 150), outer_rect, border_radius=5)
         
-        # Draw board background with gradient effect
+        # Çok katmanlı gölge (depth effect)
+        for i in range(3):
+            offset = shadow_offset - i * 3
+            alpha = 60 - i * 15
+            s_rect = pygame.Rect(
+                self.board_left - 25 + offset,
+                self.board_top - 25 + offset,
+                board_width + 50,
+                board_height + 50
+            )
+            s = pygame.Surface((s_rect.width, s_rect.height), pygame.SRCALPHA)
+            s.fill((10, 10, 20, alpha))
+            self.screen.blit(s, s_rect)
+        
+        # Ana tahta çerçevesi - gradient background
         board_bg_rect = pygame.Rect(
             self.board_left - 25, 
             self.board_top - 25, 
@@ -1006,94 +1038,114 @@ class AblukaGUI:
             board_height + 50
         )
         
-        # Create a surface for gradient background
-        s = pygame.Surface((board_bg_rect.width, board_bg_rect.height))
+        # Modern gradient - koyu kenarlardan açık merkeze
+        gradient_surf = pygame.Surface((board_bg_rect.width, board_bg_rect.height))
         for y in range(board_bg_rect.height):
-            # Custom gradient from dark to medium gray
-            color_val = 50 + int(y / board_bg_rect.height * 30)
-            pygame.draw.line(s, (color_val, color_val, color_val + 10), 
+            # Radial gradient effect simülasyonu
+            center_dist = abs(y - board_bg_rect.height / 2) / (board_bg_rect.height / 2)
+            color_val = int(45 + (1 - center_dist) * 35)
+            pygame.draw.line(gradient_surf, (color_val, color_val, color_val + 10), 
                             (0, y), (board_bg_rect.width, y))
         
-        # Apply the gradient surface
-        self.screen.blit(s, board_bg_rect)
+        self.screen.blit(gradient_surf, board_bg_rect)
         
-        # Add decorative corners to the frame
-        corner_size = 15
-        # Top-left corner
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.left, board_bg_rect.top + corner_size),
-                        (board_bg_rect.left, board_bg_rect.top), 3)
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.left, board_bg_rect.top),
-                        (board_bg_rect.left + corner_size, board_bg_rect.top), 3)
+        # Modern çerçeve - çift kenarlık
+        pygame.draw.rect(self.screen, self.GOLD, board_bg_rect, 3, border_radius=8)
+        inner_rect = pygame.Rect(
+            board_bg_rect.x + 4,
+            board_bg_rect.y + 4,
+            board_bg_rect.width - 8,
+            board_bg_rect.height - 8
+        )
+        pygame.draw.rect(self.screen, self.DARK_GRAY, inner_rect, 1, border_radius=6)
         
-        # Top-right corner
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.right - corner_size, board_bg_rect.top),
-                        (board_bg_rect.right, board_bg_rect.top), 3)
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.right, board_bg_rect.top),
-                        (board_bg_rect.right, board_bg_rect.top + corner_size), 3)
+        # Dekoratif köşe aksentleri - daha büyük ve belirgin
+        corner_size = 20
+        corner_thickness = 4
+        corners = [
+            (board_bg_rect.left, board_bg_rect.top),
+            (board_bg_rect.right, board_bg_rect.top),
+            (board_bg_rect.left, board_bg_rect.bottom),
+            (board_bg_rect.right, board_bg_rect.bottom)
+        ]
         
-        # Bottom-left corner
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.left, board_bg_rect.bottom - corner_size),
-                        (board_bg_rect.left, board_bg_rect.bottom), 3)
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.left, board_bg_rect.bottom),
-                        (board_bg_rect.left + corner_size, board_bg_rect.bottom), 3)
+        for i, (x, y) in enumerate(corners):
+            if i == 0:  # Top-left
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x, y + corner_size), (x, y), corner_thickness)
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x, y), (x + corner_size, y), corner_thickness)
+            elif i == 1:  # Top-right
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x - corner_size, y), (x, y), corner_thickness)
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x, y), (x, y + corner_size), corner_thickness)
+            elif i == 2:  # Bottom-left
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x, y - corner_size), (x, y), corner_thickness)
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x, y), (x + corner_size, y), corner_thickness)
+            else:  # Bottom-right
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x - corner_size, y), (x, y), corner_thickness)
+                pygame.draw.line(self.screen, self.ACCENT_PRIMARY, 
+                               (x, y - corner_size), (x, y), corner_thickness)
         
-        # Bottom-right corner
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.right - corner_size, board_bg_rect.bottom),
-                        (board_bg_rect.right, board_bg_rect.bottom), 3)
-        pygame.draw.line(self.screen, self.GOLD, 
-                        (board_bg_rect.right, board_bg_rect.bottom),
-                        (board_bg_rect.right, board_bg_rect.bottom - corner_size), 3)
-        
-        # Add texture pattern to the board background
-        texture_alpha = 15
-        # Float değerlerini int'e dönüştürerek range'de kullanılabilir hale getir
-        board_width_int = int(board_width)
-        board_height_int = int(board_height)
-        
-        for i in range(0, board_width_int, 10):
-            for j in range(0, board_height_int, 10):
-                if (i + j) % 20 == 0:
-                    s = pygame.Surface((3, 3), pygame.SRCALPHA)
-                    s.fill((255, 255, 255, texture_alpha))
-                    self.screen.blit(s, (self.board_left - 15 + i, self.board_top - 15 + j))
-        
-        # Draw the actual board surface
+        # Oyun tahtası yüzeyi - daha açık ve modern
         board_rect = pygame.Rect(
             self.board_left, 
             self.board_top, 
             board_width, 
             board_height
         )
-        pygame.draw.rect(self.screen, self.BOARD_BG, board_rect)
-        pygame.draw.rect(self.screen, self.DARK_GRAY, board_rect, 2)
         
-        # Draw grid lines with subtle gradient
-        for i in range(1, self.board_size):
-            # Calculate line color based on position (subtle gradient)
-            line_value = 100 + int(i / self.board_size * 50)
-            line_color = (line_value, line_value, line_value)
-            line_width = 1
+        # Alternatif karo deseni (satranç tahtası tarzı) - çok subtle
+        for row in range(self.board_size):
+            for col in range(self.board_size):
+                x = self.board_left + col * self.square_size
+                y = self.board_top + row * self.square_size
+                
+                # Alternatif renk (çok hafif fark)
+                if (row + col) % 2 == 0:
+                    color = (249, 250, 251)
+                else:
+                    color = (243, 244, 246)
+                
+                pygame.draw.rect(self.screen, color, 
+                               (x, y, self.square_size, self.square_size))
+        
+        # Grid çizgileri - ince ve modern
+        for i in range(self.board_size + 1):
+            # Dış çizgiler daha kalın
+            line_width = 2 if i == 0 or i == self.board_size else 1
+            line_color = self.BOARD_LINES if line_width == 1 else self.DARK_GRAY
             
-            # Vertical lines
+            # Dikey çizgiler
             start_pos = (self.board_left + i * self.square_size, self.board_top)
             end_pos = (self.board_left + i * self.square_size, self.board_top + board_height)
             pygame.draw.line(self.screen, line_color, start_pos, end_pos, line_width)
             
-            # Horizontal lines
+            # Yatay çizgiler
             start_pos = (self.board_left, self.board_top + i * self.square_size)
             end_pos = (self.board_left + board_width, self.board_top + i * self.square_size)
             pygame.draw.line(self.screen, line_color, start_pos, end_pos, line_width)
         
-        # Draw coordinate markers with style
+        # Merkez noktası vurgusu
+        center = self.board_size // 2
+        center_x = self.board_left + center * self.square_size + self.square_size // 2
+        center_y = self.board_top + center * self.square_size + self.square_size // 2
+        
+        # Merkez işareti - ışıldayan efekt
+        for radius in [6, 4, 2]:
+            alpha = 255 - (6 - radius) * 40
+            glow = pygame.Surface((radius * 2 + 4, radius * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(glow, (*self.ACCENT_SECONDARY[:3], alpha), 
+                             (radius + 2, radius + 2), radius)
+            self.screen.blit(glow, (center_x - radius - 2, center_y - radius - 2))
+        
+        # Koordinat işaretleri - modern font
         for i in range(self.board_size):
-            # Column markers (numbers)
+            # Sütun numaraları
             text = self.small_font.render(str(i), True, self.SILVER)
             text_rect = text.get_rect(center=(
                 self.board_left + i * self.square_size + self.square_size // 2,
@@ -1101,20 +1153,13 @@ class AblukaGUI:
             ))
             self.screen.blit(text, text_rect)
             
-            # Row markers (letters)
+            # Satır harfleri
             text = self.small_font.render(chr(65 + i), True, self.SILVER)
             text_rect = text.get_rect(center=(
                 self.board_left - 15,
                 self.board_top + i * self.square_size + self.square_size // 2
             ))
             self.screen.blit(text, text_rect)
-        
-        # Add grid intersection dot highlights at specific points
-        for i in range(1, self.board_size, 2):
-            for j in range(1, self.board_size, 2):
-                x = self.board_left + i * self.square_size
-                y = self.board_top + j * self.square_size
-                pygame.draw.circle(self.screen, self.GOLD, (x, y), 2)
     
     def _draw_navigation_buttons(self):
         """Draw navigation buttons (menu, restart, exit)"""
@@ -1434,76 +1479,129 @@ class AblukaGUI:
                         (cell == 'W' and self.animation_piece == 'W' and (row, col) == self.animation_start))):
                         continue
                     
-                    if cell == 'B':  # Black piece
-                        # Draw shadow
-                        pygame.draw.circle(self.screen, (50, 50, 50), (center_x + 3, center_y + 3), self.square_size // 3)
-                        
-                        # Draw the piece with gradient effect
+                    if cell == 'B':  # Black piece - Modern 3D tasarım
                         radius = self.square_size // 3
+                        
+                        # Çok katmanlı gölge (depth)
+                        for i in range(3):
+                            shadow_offset = 4 - i
+                            shadow_alpha = 100 - i * 25
+                            shadow_surf = pygame.Surface((radius * 2 + 10, radius * 2 + 10), pygame.SRCALPHA)
+                            pygame.draw.circle(shadow_surf, (0, 0, 0, shadow_alpha), 
+                                             (radius + 5, radius + 5), radius)
+                            self.screen.blit(shadow_surf, 
+                                           (center_x - radius - 5 + shadow_offset, 
+                                            center_y - radius - 5 + shadow_offset))
+                        
+                        # Ana taş - realistik gradient
                         for r in range(radius, 0, -1):
-                            # Gradient from dark gray to black
-                            color = max(0, 50 - r)
-                            pygame.draw.circle(self.screen, (color, color, color), (center_x, center_y), r)
+                            # Radyal gradient - merkez daha açık
+                            progress = r / radius
+                            # Koyu siyah dış, biraz açık iç
+                            color_val = int(25 + (1 - progress) * 15)
+                            pygame.draw.circle(self.screen, (color_val, color_val, color_val), 
+                                             (center_x, center_y), r)
                         
-                        # Draw highlight
-                        highlight_pos = (center_x - radius // 3, center_y - radius // 3)
-                        pygame.draw.circle(self.screen, (100, 100, 100), highlight_pos, radius // 4)
+                        # Işık efekti (highlight) - üst sol
+                        highlight_x = center_x - radius // 3
+                        highlight_y = center_y - radius // 3
                         
-                        # Draw rim
-                        pygame.draw.circle(self.screen, (70, 70, 70), (center_x, center_y), radius, 2)
+                        # Çok katmanlı highlight (glow)
+                        for i in range(3, 0, -1):
+                            h_radius = radius // 4 + i
+                            h_alpha = 180 - i * 40
+                            h_surf = pygame.Surface((h_radius * 2 + 4, h_radius * 2 + 4), pygame.SRCALPHA)
+                            pygame.draw.circle(h_surf, (255, 255, 255, h_alpha), 
+                                             (h_radius + 2, h_radius + 2), h_radius)
+                            self.screen.blit(h_surf, (highlight_x - h_radius - 2, highlight_y - h_radius - 2))
                         
-                    elif cell == 'W':  # White piece
-                        # Draw shadow
-                        pygame.draw.circle(self.screen, (50, 50, 50), (center_x + 3, center_y + 3), self.square_size // 3)
+                        # Dış çerçeve - metalik görünüm
+                        pygame.draw.circle(self.screen, (90, 90, 100), (center_x, center_y), radius, 3)
+                        pygame.draw.circle(self.screen, (50, 50, 60), (center_x, center_y), radius - 1, 1)
                         
-                        # Draw the piece with gradient effect
+                    elif cell == 'W':  # White piece - Modern 3D tasarım
                         radius = self.square_size // 3
+                        
+                        # Çok katmanlı gölge
+                        for i in range(3):
+                            shadow_offset = 4 - i
+                            shadow_alpha = 100 - i * 25
+                            shadow_surf = pygame.Surface((radius * 2 + 10, radius * 2 + 10), pygame.SRCALPHA)
+                            pygame.draw.circle(shadow_surf, (0, 0, 0, shadow_alpha), 
+                                             (radius + 5, radius + 5), radius)
+                            self.screen.blit(shadow_surf, 
+                                           (center_x - radius - 5 + shadow_offset, 
+                                            center_y - radius - 5 + shadow_offset))
+                        
+                        # Ana taş - parlak gradient
                         for r in range(radius, 0, -1):
-                            # Gradient from light gray to white
-                            color = min(255, 200 + r)
-                            pygame.draw.circle(self.screen, (color, color, color), (center_x, center_y), r)
+                            progress = r / radius
+                            # Parlak beyaz
+                            color_val = int(255 - progress * 25)
+                            pygame.draw.circle(self.screen, (color_val, color_val, color_val), 
+                                             (center_x, center_y), r)
                         
-                        # Draw outer rim
-                        pygame.draw.circle(self.screen, self.BLACK, (center_x, center_y), radius, 2)
+                        # Işık efekti - çok parlak
+                        highlight_x = center_x - radius // 3
+                        highlight_y = center_y - radius // 3
                         
-                        # Draw inner rim
-                        pygame.draw.circle(self.screen, (150, 150, 150), (center_x, center_y), radius - 3, 1)
+                        for i in range(4, 0, -1):
+                            h_radius = radius // 3 + i
+                            h_alpha = 220 - i * 40
+                            h_surf = pygame.Surface((h_radius * 2 + 4, h_radius * 2 + 4), pygame.SRCALPHA)
+                            pygame.draw.circle(h_surf, (255, 255, 255, h_alpha), 
+                                             (h_radius + 2, h_radius + 2), h_radius)
+                            self.screen.blit(h_surf, (highlight_x - h_radius - 2, highlight_y - h_radius - 2))
                         
-                        # Draw highlight
-                        highlight_pos = (center_x - radius // 3, center_y - radius // 3)
-                        pygame.draw.circle(self.screen, (255, 255, 255), highlight_pos, radius // 4)
+                        # Dış çerçeveler - kaliteli görünüm
+                        pygame.draw.circle(self.screen, self.DARK_GRAY, (center_x, center_y), radius, 3)
+                        pygame.draw.circle(self.screen, (180, 180, 190), (center_x, center_y), radius - 2, 1)
+                        pygame.draw.circle(self.screen, (200, 200, 210), (center_x, center_y), radius - 4, 1)
                         
-                    elif cell == 'R':  # Red obstacle
-                        # Draw a more elaborate obstacle with shadow and gradient
+                    elif cell == 'R':  # Red obstacle - Modern ve dikkat çekici
                         rect_size = self.square_size // 2
                         rect_x = screen_x + self.square_size // 4
                         rect_y = screen_y + self.square_size // 4
                         
-                        # Draw shadow
-                        shadow_rect = pygame.Rect(rect_x + 3, rect_y + 3, rect_size, rect_size)
-                        pygame.draw.rect(self.screen, (50, 20, 20), shadow_rect)
+                        # Güçlü gölge
+                        for i in range(3):
+                            shadow_offset = 5 - i
+                            shadow_alpha = 120 - i * 30
+                            shadow_surf = pygame.Surface((rect_size + 10, rect_size + 10), pygame.SRCALPHA)
+                            shadow_surf.fill((20, 0, 0, shadow_alpha))
+                            self.screen.blit(shadow_surf, 
+                                           (rect_x - 5 + shadow_offset, rect_y - 5 + shadow_offset))
                         
-                        # Draw base with gradient
-                        obstacle_rect = pygame.Rect(rect_x, rect_y, rect_size, rect_size)
-                        
+                        # Ana engel - gradient kırmızı
                         for y_offset in range(rect_size):
-                            # Gradient from dark red to bright red
-                            red_value = 170 + (y_offset / rect_size) * 50
-                            pygame.draw.line(self.screen, (int(red_value), 20, 20), 
+                            progress = y_offset / rect_size
+                            # Koyu kırmızıdan parlak kırmızıya
+                            red_val = int(180 + progress * 75)
+                            green_val = int(20 + progress * 50)
+                            blue_val = int(20 + progress * 50)
+                            pygame.draw.line(self.screen, (red_val, green_val, blue_val), 
                                            (rect_x, rect_y + y_offset), 
                                            (rect_x + rect_size, rect_y + y_offset))
                         
-                        # Draw border
-                        pygame.draw.rect(self.screen, (100, 0, 0), obstacle_rect, 2)
+                        # Parlama efekti (highlight)
+                        highlight_size = rect_size // 2
+                        highlight_surf = pygame.Surface((highlight_size, highlight_size), pygame.SRCALPHA)
+                        for y in range(highlight_size):
+                            for x in range(highlight_size):
+                                # Radyal parlama
+                                dist = ((x - highlight_size/2)**2 + (y - highlight_size/2)**2)**0.5
+                                max_dist = highlight_size / 2
+                                if dist < max_dist:
+                                    alpha = int(180 * (1 - dist / max_dist))
+                                    highlight_surf.set_at((x, y), (255, 180, 180, alpha))
                         
-                        # Draw highlight
-                        highlight_size = rect_size // 3
-                        highlight_rect = pygame.Rect(rect_x + 2, rect_y + 2, highlight_size, highlight_size)
+                        self.screen.blit(highlight_surf, (rect_x + 3, rect_y + 3))
                         
-                        # Create a highlight effect
-                        s = pygame.Surface((highlight_size, highlight_size), pygame.SRCALPHA)
-                        s.fill((255, 100, 100, 100))  # Semi-transparent lighter red
-                        self.screen.blit(s, highlight_rect)
+                        # Kalın çerçeve - tehlike işareti
+                        pygame.draw.rect(self.screen, (120, 0, 0), 
+                                       (rect_x, rect_y, rect_size, rect_size), 3)
+                        pygame.draw.rect(self.screen, (200, 50, 50), 
+                                       (rect_x + 2, rect_y + 2, rect_size - 4, rect_size - 4), 1)
         
         # Draw animated piece if active
         if self.animation_active and self.animation_start and self.animation_end:
@@ -1539,10 +1637,10 @@ class AblukaGUI:
                 pygame.draw.circle(self.screen, (70, 70, 70), (center_x, center_y), radius, 2)
                 
                 # Add motion trail (semi-transparent circles behind the piece)
-                trail_length = 5
+                trail_length = 6  # Daha uzun trail
                 for i in range(1, trail_length + 1):
                     # Calculate trail position (further back in the movement path)
-                    trail_progress = max(0, self.animation_progress - (i * 0.15))
+                    trail_progress = max(0, self.animation_progress - (i * 0.12))
                     trail_x = start_x + (end_x - start_x) * trail_progress
                     trail_y = start_y + (end_y - start_y) * trail_progress
                     
@@ -1550,12 +1648,20 @@ class AblukaGUI:
                     trail_center_x = trail_screen_x + self.square_size // 2
                     trail_center_y = trail_screen_y + self.square_size // 2
                     
-                    # Draw trail with decreasing opacity
-                    trail_alpha = int(100 - (i * 20))
-                    if trail_alpha > 0:
-                        trail_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-                        pygame.draw.circle(trail_surf, (50, 50, 50, trail_alpha), (radius, radius), radius)
-                        self.screen.blit(trail_surf, (trail_center_x - radius, trail_center_y - radius))
+                    # Draw trail with decreasing opacity and size
+                    trail_alpha = int(120 - (i * 18))
+                    trail_size = int(radius * (1 - i * 0.08))
+                    
+                    if trail_alpha > 0 and trail_size > 0:
+                        trail_surf = pygame.Surface((trail_size * 2 + 4, trail_size * 2 + 4), pygame.SRCALPHA)
+                        # Gradient trail
+                        for r in range(trail_size, 0, -1):
+                            alpha_r = int(trail_alpha * (r / trail_size))
+                            pygame.draw.circle(trail_surf, (50, 50, 50, alpha_r), 
+                                             (trail_size + 2, trail_size + 2), r)
+                        self.screen.blit(trail_surf, 
+                                       (trail_center_x - trail_size - 2, 
+                                        trail_center_y - trail_size - 2))
                 
             else:  # White piece
                 # Draw shadow
@@ -1574,11 +1680,11 @@ class AblukaGUI:
                 highlight_pos = (center_x - radius // 3, center_y - radius // 3)
                 pygame.draw.circle(self.screen, (255, 255, 255), highlight_pos, radius // 4)
                 
-                # Add motion trail
-                trail_length = 5
+                # Add motion trail - parlak beyaz trail
+                trail_length = 6
                 for i in range(1, trail_length + 1):
                     # Calculate trail position
-                    trail_progress = max(0, self.animation_progress - (i * 0.15))
+                    trail_progress = max(0, self.animation_progress - (i * 0.12))
                     trail_x = start_x + (end_x - start_x) * trail_progress
                     trail_y = start_y + (end_y - start_y) * trail_progress
                     
@@ -1586,12 +1692,20 @@ class AblukaGUI:
                     trail_center_x = trail_screen_x + self.square_size // 2
                     trail_center_y = trail_screen_y + self.square_size // 2
                     
-                    # Draw trail with decreasing opacity
-                    trail_alpha = int(100 - (i * 20))
-                    if trail_alpha > 0:
-                        trail_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-                        pygame.draw.circle(trail_surf, (200, 200, 200, trail_alpha), (radius, radius), radius)
-                        self.screen.blit(trail_surf, (trail_center_x - radius, trail_center_y - radius))
+                    # Draw trail with decreasing opacity and size
+                    trail_alpha = int(140 - (i * 20))
+                    trail_size = int(radius * (1 - i * 0.08))
+                    
+                    if trail_alpha > 0 and trail_size > 0:
+                        trail_surf = pygame.Surface((trail_size * 2 + 4, trail_size * 2 + 4), pygame.SRCALPHA)
+                        # Parlak beyaz gradient trail
+                        for r in range(trail_size, 0, -1):
+                            alpha_r = int(trail_alpha * (r / trail_size))
+                            pygame.draw.circle(trail_surf, (230, 230, 240, alpha_r), 
+                                             (trail_size + 2, trail_size + 2), r)
+                        self.screen.blit(trail_surf, 
+                                       (trail_center_x - trail_size - 2, 
+                                        trail_center_y - trail_size - 2))
     
     def _draw_highlights(self):
         """Draw highlighted squares for valid moves"""
@@ -1671,72 +1785,137 @@ class AblukaGUI:
             self.screen.blit(glow_surface, (glow_x, glow_y))
     
     def _draw_status(self):
-        """Draw status and winner messages with stylish panel"""
-        # Ana bilgi paneli - daha kompakt
-        main_panel_width = self.width - 340  # Narrower panel to avoid buttons
-        main_panel_height = 32  # Daha alçak
+        """Modern ve kompakt durum paneli"""
+        # Ana bilgi paneli - daha kompakt ve şık
+        main_panel_width = self.width - 340
+        main_panel_height = 40  # Daha yüksek ama daha şık
         main_panel_x = 20
         main_panel_y = 10
         
-        # İstatistikler için ince bir border ile şık bir panel
+        # Modern gradient arkaplan
         s = pygame.Surface((main_panel_width, main_panel_height), pygame.SRCALPHA)
-        s.fill((20, 20, 30, 200))  # Daha koyu ve saydam
+        
+        # Gradient dolgusu
+        for y in range(main_panel_height):
+            progress = y / main_panel_height
+            r = int(25 + progress * 10)
+            g = int(30 + progress * 10)
+            b = int(45 + progress * 15)
+            alpha = 220
+            pygame.draw.line(s, (r, g, b, alpha), (0, y), (main_panel_width, y))
+        
         self.screen.blit(s, (main_panel_x, main_panel_y))
         
-        # Altın kenarlık
-        pygame.draw.rect(self.screen, self.GOLD, (main_panel_x, main_panel_y, main_panel_width, main_panel_height), 2)
+        # Modern çift çerçeve
+        pygame.draw.rect(self.screen, self.ACCENT_PRIMARY, 
+                        (main_panel_x, main_panel_y, main_panel_width, main_panel_height), 
+                        2, border_radius=6)
+        pygame.draw.rect(self.screen, self.GOLD, 
+                        (main_panel_x + 2, main_panel_y + 2, main_panel_width - 4, main_panel_height - 4), 
+                        1, border_radius=5)
         
-        # Tek panelde tüm bilgileri göster
+        # İçerik - daha iyi düzenlenmiş
         if self.mode == 'human_vs_ai':
-            # İki ayırıcı çizgi
-            pygame.draw.line(self.screen, self.SILVER, 
-                            (main_panel_x + main_panel_width * 0.33, main_panel_y + 5), 
-                            (main_panel_x + main_panel_width * 0.33, main_panel_y + main_panel_height - 5), 1)
-            pygame.draw.line(self.screen, self.SILVER, 
-                            (main_panel_x + main_panel_width * 0.66, main_panel_y + 5), 
-                            (main_panel_x + main_panel_width * 0.66, main_panel_y + main_panel_height - 5), 1)
+            # 3 bölüm: Durum | Oyuncu | Faz
+            section_width = main_panel_width // 3
             
-            # Durum mesajı - sol bölüm
-            status_text = self.small_font.render(self.status_message, True, self.WHITE)
-            status_rect = status_text.get_rect(midleft=(main_panel_x + 10, main_panel_y + main_panel_height // 2))
+            # Ayırıcı çizgiler - gradient
+            for i in range(1, 3):
+                x = main_panel_x + section_width * i
+                # Gradient line
+                for y in range(8, main_panel_height - 8):
+                    progress = (y - 8) / (main_panel_height - 16)
+                    alpha = int(100 + progress * 100 - abs(progress - 0.5) * 100)
+                    pygame.draw.line(self.screen, (*self.ACCENT_SECONDARY[:3], alpha), 
+                                   (x, main_panel_y + y), (x, main_panel_y + y))
+            
+            # 1. DURUM (sol)
+            status_icon = "●" if self.game.current_player == 'B' else "○"
+            player_name = "Siyah" if self.game.current_player == 'B' else "Beyaz"
+            status_full = f"{status_icon} {player_name}'ın sırası"
+            
+            if self.game.game_over:
+                status_full = "🏆 Oyun Bitti!"
+            
+            status_text = self.small_font.render(status_full, True, self.WHITE)
+            status_rect = status_text.get_rect(
+                center=(main_panel_x + section_width // 2, main_panel_y + main_panel_height // 2)
+            )
             self.screen.blit(status_text, status_rect)
             
-            # İnsan oyuncu bilgisi - orta bölüm
-            human_text = self.small_font.render(
-                f"Siz: {'Siyah' if self.human_piece == 'B' else 'Beyaz'} taşsınız", 
-                True, self.WHITE
+            # 2. OYUNCU BİLGİSİ (orta)
+            piece_icon = "●" if self.human_piece == 'B' else "○"
+            piece_name = "Siyah" if self.human_piece == 'B' else "Beyaz"
+            human_info = f"{piece_icon} Siz: {piece_name}"
+            
+            human_text = self.small_font.render(human_info, True, self.GOLD)
+            human_rect = human_text.get_rect(
+                center=(main_panel_x + section_width + section_width // 2, 
+                       main_panel_y + main_panel_height // 2)
             )
-            human_rect = human_text.get_rect(center=(main_panel_x + main_panel_width * 0.5, main_panel_y + main_panel_height // 2))
             self.screen.blit(human_text, human_rect)
             
-            # Oyun fazı - sağ bölüm
+            # 3. OYUN FAZI (sağ)
             if not self.game.game_over:
-                phase_text = self.small_font.render(
-                    "Engel yerleştirme" if self.obstacle_placement_phase else "Taş hareket", 
-                    True, self.WHITE
-                )
-                phase_rect = phase_text.get_rect(midright=(main_panel_x + main_panel_width - 10, main_panel_y + main_panel_height // 2))
-                self.screen.blit(phase_text, phase_rect)
-        else:
-            # İnsan vs İnsan modu
-            # Ayırıcı çizgi
-            pygame.draw.line(self.screen, self.SILVER, 
-                           (main_panel_x + main_panel_width // 2, main_panel_y + 5), 
-                           (main_panel_x + main_panel_width // 2, main_panel_y + main_panel_height - 5), 1)
+                if self.obstacle_placement_phase:
+                    phase_text = "🔴 Engel Yerleştir"
+                    phase_color = self.RED
+                else:
+                    phase_text = "♟ Taş Hareket"
+                    phase_color = self.GREEN
+            else:
+                phase_text = "✓ Tamamlandı"
+                phase_color = self.SUCCESS
             
-            # Durum mesajı - sol bölüm
-            status_text = self.small_font.render(self.status_message, True, self.WHITE)
-            status_rect = status_text.get_rect(midleft=(main_panel_x + 10, main_panel_y + main_panel_height // 2))
+            phase_surface = self.small_font.render(phase_text, True, phase_color)
+            phase_rect = phase_surface.get_rect(
+                center=(main_panel_x + section_width * 2 + section_width // 2, 
+                       main_panel_y + main_panel_height // 2)
+            )
+            self.screen.blit(phase_surface, phase_rect)
+            
+        else:
+            # İnsan vs İnsan modu - basitleştirilmiş
+            # İki bölüm: Durum | Faz
+            divider_x = main_panel_x + main_panel_width * 0.6
+            
+            # Ayırıcı çizgi
+            for y in range(8, main_panel_height - 8):
+                progress = (y - 8) / (main_panel_height - 16)
+                alpha = int(100 + progress * 100 - abs(progress - 0.5) * 100)
+                pygame.draw.line(self.screen, (*self.ACCENT_SECONDARY[:3], alpha), 
+                               (int(divider_x), main_panel_y + y), 
+                               (int(divider_x), main_panel_y + y))
+            
+            # Durum
+            status_icon = "●" if self.game.current_player == 'B' else "○"
+            player_name = "Siyah" if self.game.current_player == 'B' else "Beyaz"
+            status_text = self.small_font.render(f"{status_icon} {player_name}'ın sırası", 
+                                                True, self.WHITE)
+            status_rect = status_text.get_rect(
+                center=(main_panel_x + main_panel_width * 0.3, 
+                       main_panel_y + main_panel_height // 2)
+            )
             self.screen.blit(status_text, status_rect)
             
-            # Oyun fazı - sağ bölüm
+            # Faz
             if not self.game.game_over:
-                phase_text = self.small_font.render(
-                    "Engel yerleştirme" if self.obstacle_placement_phase else "Taş hareket", 
-                    True, self.WHITE
-                )
-                phase_rect = phase_text.get_rect(midright=(main_panel_x + main_panel_width - 10, main_panel_y + main_panel_height // 2))
-                self.screen.blit(phase_text, phase_rect)
+                if self.obstacle_placement_phase:
+                    phase_str = "🔴 Engel Yerleştir"
+                    p_color = self.RED
+                else:
+                    phase_str = "♟ Taş Hareket"
+                    p_color = self.GREEN
+            else:
+                phase_str = "✓ Oyun Bitti"
+                p_color = self.SUCCESS
+            
+            phase_text = self.small_font.render(phase_str, True, p_color)
+            phase_rect = phase_text.get_rect(
+                center=(main_panel_x + main_panel_width * 0.8, 
+                       main_panel_y + main_panel_height // 2)
+            )
+            self.screen.blit(phase_text, phase_rect)
     
     def _draw_fade_message(self):
         """Draw fading message that appears temporarily"""

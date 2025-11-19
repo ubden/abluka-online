@@ -7,45 +7,55 @@ from copy import deepcopy
 
 class AIPlayer:
     """
-    Abluka AI - Revize Edilmiş Versiyon
-    - easy  : önceki 'normal' strateji
-    - normal: önceki 'hard' strateji
-    - hard  : ultra seviye, makine öğrenmesi entegre edilebilir iskelet
+    Geliştirilmiş Abluka AI
+    - easy   : Sabit derinlikli Minimax/Alphabeta
+    - normal : Iterative deepening + budamalı Minimax
+    - hard   : Q-learning tabanlı self-play öğrenmesi + sabit Q-tablo kullanımı
+
+    self-play sırasında:
+      - exploration yüksek,
+      - hamleler Q + heuristik ile seçilir,
+      - geriye dönük ödül güncellemesi yapılır.
+
+    gerçek oyunda (ör. insanla oynarken):
+      - exploration=0,
+      - Q tablosu sadece “en iyi bilinen” hamleyi seçmek için kullanılır,
+      - ek eğitim (update) yapılmaz.
     """
 
     def __init__(self, difficulty='normal', max_time=5.0):
         self.difficulty = difficulty
-        self.max_time = float(max_time)  # her hamlede düşünme süresi (saniye)
-        
-        # Bu modlar, önceki koda göre yer değiştirdi:
-        # easy   => önceki normal
-        # normal => önceki hard
-        # hard   => makine öğrenmesi iskeleti
-        
-        # Aşağıda base_depth gibi parametreleri zorluklara göre yeniden tanımlıyoruz:
+        self.max_time = float(max_time)  # her hamlede düşünülecek max süre (saniye)
+
+        # Minimax parametreleri - İyileştirilmiş zorluk seviyeleri
         if self.difficulty == 'easy':
-            # EASY: önceki normal modun temel parametreleri
-            # Yani sabit derinlik 3-4 civarında Minimax + AlphaBeta
-            self.base_depth = 3  # normalde 3
-            self.max_time = max(self.max_time, 2.0)
-            
+            self.base_depth = 2  # Daha basit düşünme
+            self.max_time = max(self.max_time, 1.5)
+            self.ml_usage_factor = 0.0  # Kolay modda ML yok
+            self.randomness = 0.4  # %40 rastgele hamle
+            self.min_safe_moves = 3  # En az 3 hamle kalmalı
+            self.future_turns_check = 1  # 1 tur ilerisini kontrol et
         elif self.difficulty == 'normal':
-            # NORMAL: önceki hard mantığı - iterative deepening
-            self.base_depth = 5  # önceki Hard mod 4 veya 5
-            self.max_time = max(self.max_time, 3.0)
-
+            self.base_depth = 4  # Orta seviye düşünme
+            self.max_time = max(self.max_time, 2.5)
+            self.ml_usage_factor = 0.3  # Az ML kullan
+            self.randomness = 0.15  # %15 rastgele hamle
+            self.min_safe_moves = 4  # En az 4 hamle kalmalı
+            self.future_turns_check = 2  # 2 tur ilerisini kontrol et
         else:  # 'hard'
-            # HARD: Ultra seviye -> RL / ML iskeleti
-            # Tekrar da bir base_depth tutalım, eğer fallback minimax istersen
-            self.base_depth = 6
-            self.max_time = max(self.max_time, 4.0)
+            self.base_depth = 5  # Daha derin düşünme
+            self.max_time = max(self.max_time, 3.5)
+            self.ml_usage_factor = 1.0  # Tam kapasite ML
+            self.randomness = 0.05  # Çok az rastgele hamle
+            self.min_safe_moves = 4  # En az 4 hamle kalmalı
+            self.future_turns_check = 3  # 3 tur ilerisini kontrol et
 
-        # Loglama
+        # Log / kayıt
         self.log_enabled = True
         self.game_log = []
         self.log_file = self._create_log_file()
 
-        # Duygusal tepkiler
+        # Duygusal tepkiler (opsiyonel)
         self.emojis = {
             'happy': [':-)', ':D', ':)', '(:', '8-)'],
             'thinking': [':-/', ':-?', ':-\\', '8-|', '*-*'],
@@ -94,16 +104,21 @@ class AIPlayer:
         self.current_message = None
         self.last_mobility = None
         self.move_counter = 0
-        
-        # Son hamledeki strateji açıklaması
-        self.last_move_reasoning = ""
+        self.last_move_reasoning = ""  # Debug amaçlı
 
-        # Öğrenme sistemi için gerekli veri yapıları
-        self.learning_enabled = difficulty == 'hard'  # Sadece hard modda öğrenme aktif
-        
-        # Öğrenme için gerekli değişkenler
+        # ML sadece 'hard' modda gerçek anlamda aktif
+        self.learning_enabled = (self.difficulty == 'hard')
+
         if self.learning_enabled:
             self._init_learning_system()
+        else:
+            # Hard dışındaki modlarda Q tablosu devreye girmeyecek
+            self.q_table = {}
+            self.learning_rate = 0.1
+            self.discount_factor = 0.95
+            self.exploration_rate = 0.0
+            self.min_exploration_rate = 0.01
+            self.exploration_decay = 0.99985
 
     def _create_log_file(self):
         """Log dosyası oluştur."""
@@ -114,9 +129,10 @@ class AIPlayer:
             try:
                 os.makedirs(log_dir)
             except:
-                print("Log dizini oluşturulamadı, loglama devre dışı.")
+                print("Log klasörü oluşturulamadı, log devredışı.")
                 self.log_enabled = False
                 return None
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{log_dir}/abluka_game_{timestamp}.log"
         try:
@@ -126,22 +142,20 @@ class AIPlayer:
                 f.write("------------------------------------------------\n")
             return filename
         except:
-            print("Log dosyası oluşturulamadı, loglama devre dışı.")
+            print("Log dosyası oluşturulamadı, log devredışı.")
             self.log_enabled = False
             return None
 
     def _log_move(self, player, move, obstacle, strategy, board_state=None):
-        """Hamleyi logla."""
         if not self.log_enabled or not self.log_file:
             return
         try:
             with open(self.log_file, 'a', encoding='utf-8') as f:
-                f.write(f"\nHamle #{len(self.game_log) + 1}\n")
-                f.write(f"Oyuncu: {'AI' if player != 'Human' else 'İnsan'} ({player})\n")
+                f.write(f"\nHamle #{len(self.game_log)+1}\n")
+                f.write(f"Oyuncu: {'AI' if player!='Human' else 'İnsan'} ({player})\n")
                 f.write(f"Taş Hamlesi: {move}\n")
                 f.write(f"Engel: {obstacle}\n")
                 f.write(f"Strateji: {strategy}\n")
-
                 if board_state:
                     f.write("Tahta Durumu:\n")
                     size = board_state.size
@@ -153,13 +167,13 @@ class AIPlayer:
                                 row_txt.append('B')
                             elif cell == 'W':
                                 row_txt.append('W')
-                            elif cell in ('X', 'R'):
+                            elif cell in ('X','R'):
                                 row_txt.append('X')
                             else:
                                 row_txt.append('.')
-                        f.write(' '.join(row_txt) + '\n')
+                        f.write(' '.join(row_txt)+'\n')
                 f.write("------------------------------------------------\n")
-            
+
             self.game_log.append({
                 'player': player,
                 'move': move,
@@ -171,8 +185,10 @@ class AIPlayer:
 
     def choose_move(self, game_state):
         """
-        Tüm zorluk seviyelerine göre en iyi (move, obstacle) döndürür.
-        move = (r, c), obstacle = (r, c)
+        İyileştirilmiş hamle seçimi
+        - Zorluk seviyesine göre gerçekçi davranış
+        - İnsan benzeri "hatalar" (kolay/normal)
+        - Stratejik düşünme (zor)
         """
         start_time = time.time()
         board = game_state['board']
@@ -180,304 +196,340 @@ class AIPlayer:
 
         valid_moves = board.get_valid_moves(player)
         if not valid_moves:
-            self.current_message = self._random_reaction(
-                self.emojis['worried'], self.messages['trapped']
-            )
+            self.current_message = self._random_reaction(self.emojis['worried'], self.messages['trapped'])
             return None, None
 
         self.move_counter += 1
-        self._assess_emotion(board, player)  # duygusal tepki için
+        self._assess_emotion(board, player)
 
-        print(f"\n[AI] {player} oyuncusu (AI) hamle yapıyor - Zorluk: {self.difficulty}")
-        print(f"[AI] Siyah taş: {board.black_pos}, Beyaz taş: {board.white_pos}")
-        print(f"[AI] Siyah hamle sayısı: {len(board.get_valid_moves('B'))}, "
-              f"Beyaz hamle sayısı: {len(board.get_valid_moves('W'))}")
+        print(f"\n[AI] {player} (AI) hamle yapıyor. Zorluk: {self.difficulty}")
+        print(f"[AI] Siyah: {board.black_pos}, Beyaz: {board.white_pos}")
+        print(f"[AI] Siyah hamleleri: {len(board.get_valid_moves('B'))}, "
+              f"Beyaz hamleleri: {len(board.get_valid_moves('W'))}")
 
-        # Kazanma tahmini
-        win_probability = self._calculate_win_probability(board, player)
-        print(f"[AI] {player} için kazanma olasılığı: %{win_probability:.1f}")
+        # Tahmini kazanma
+        win_prob = self._calculate_win_probability(board, player)
+        print(f"[AI] Kazanma olasılığı: %{win_prob:.1f}")
 
-        time_limit = self.max_time
+        # Direkt kazanma kontrolü (tüm zorluklar için)
+        immediate = self._check_immediate_win(board, player)
+        if immediate:
+            mv, obs = immediate
+            
+            # KOLAY modda bazen belirgin kazanmayı kaçır (insan gibi)
+            if self.difficulty == 'easy' and random.random() < 0.30:
+                print("[AI] Kolay mod: Kazanma fırsatını gördü ama kaçırdı (insan hatası)")
+                self.current_message = self._random_reaction(self.emojis['thinking'], self.messages['thinking'])
+                # Normal hamle yap
+                pass
+            else:
+                elapsed = time.time() - start_time
+                self.current_message = self._random_reaction(self.emojis['excited'], self.messages['confident'])
+                self.last_move_reasoning = "Direkt kazanma fırsatı!"
+                self._log_move(player, mv, obs, self.last_move_reasoning, board)
+                if elapsed < 0.5:
+                    time.sleep(0.5 - elapsed)
+                return mv, obs
 
-        # Anında kazanma kontrolü
-        immediate_win = self._check_immediate_win(board, player)
-        if immediate_win:
-            mv, obs = immediate_win
-            elapsed = time.time() - start_time
-            self.current_message = self._random_reaction(
-                self.emojis['excited'], self.messages['confident']
-            )
-            self.last_move_reasoning = "Anında kazanma - rakip ablukaya alındı"
-            self._log_move(player, mv, obs, self.last_move_reasoning, board)
-            if elapsed < 0.5:
-                time.sleep(0.5 - elapsed)
-            return mv, obs
-
-        # Mod seçimine göre hamle fonksiyonu
-        if self.difficulty == 'easy':
-            # EASY => ÖNCEKİ NORMAL
-            move, obstacle = self._choose_move_old_normal(board, player, time_limit, start_time)
-
-        elif self.difficulty == 'normal':
-            # NORMAL => ÖNCEKİ HARD
-            move, obstacle = self._choose_move_old_hard(board, player, time_limit, start_time)
-
+        # İnsan benzeri düşünme süresi simülasyonu
+        # Zor durumlarda daha uzun düşün
+        my_moves_count = len(valid_moves)
+        if my_moves_count <= 3:
+            # Sıkışıktayım, daha uzun düşün
+            min_think_time = 0.8 if self.difficulty == 'easy' else 1.2
+        elif my_moves_count >= 6:
+            # Rahatım, hızlı karar ver
+            min_think_time = 0.4 if self.difficulty == 'easy' else 0.6
         else:
-            # HARD => Makine Öğrenmesi iskeleti
-            move, obstacle = self._choose_move_ultra_ml(board, player, time_limit, start_time)
+            min_think_time = 0.5 if self.difficulty == 'easy' else 0.8
+
+        # Zorluk moduna göre hamle seç
+        if self.difficulty == 'easy':
+            mv, obs = self._choose_move_old_normal(board, player, self.max_time, start_time)
+        elif self.difficulty == 'normal':
+            mv, obs = self._choose_move_old_hard(board, player, self.max_time, start_time)
+        else:
+            mv, obs = self._choose_move_ultra_ml(board, player, self.max_time, start_time)
 
         elapsed = time.time() - start_time
-        print(f"[AI] Seviye: {self.difficulty}, Süre: {elapsed:.2f} sn -> "
-              f"Hamle: {move}, Engel: {obstacle}")
-        print(f"[AI] STRATEJİ: {self.last_move_reasoning}")
+        print(f"[AI] Süre: {elapsed:.2f} sn => Hamle: {mv}, Engel: {obs}")
+        print(f"[AI] Strateji: {self.last_move_reasoning}")
 
-        if move and obstacle:
-            temp_board = self._clone_board(board)
-            temp_board.move_piece(player, move)
-            temp_board.place_obstacle(obstacle)
-            future_win_prob = self._calculate_win_probability(temp_board, player)
-            opponent = 'W' if player == 'B' else 'B'
-            op_moves_after = len(temp_board.get_valid_moves(opponent))
-            my_moves_after = len(temp_board.get_valid_moves(player))
+        if mv and obs:
+            temp_b = self._clone_board(board)
+            temp_b.move_piece(player, mv)
+            temp_b.place_obstacle(obs)
+            fut_prob = self._calculate_win_probability(temp_b, player)
+            opponent = ('W' if player == 'B' else 'B')
+            opp_m = len(temp_b.get_valid_moves(opponent))
+            my_m = len(temp_b.get_valid_moves(player))
+            print(f"[AI] Sonrası kazanma: %{fut_prob:.1f}")
+            print(f"[AI] Rakip hamle: {opp_m}, Benim hamle: {my_m}")
+            
+            # Hamleden sonra duygusal tepki
+            if fut_prob > 70:
+                self.current_message = self._random_reaction(self.emojis['smug'], self.messages['confident'])
+            elif fut_prob < 30:
+                self.current_message = self._random_reaction(self.emojis['worried'], self.messages['worried'])
 
-            print(f"[AI] Hamle sonrası kazanma olasılığı: %{future_win_prob:.1f}")
-            print(f"[AI] Rakip hamle sayısı: {op_moves_after}, Kendi hamle sayım: {my_moves_after}")
-
-        self._log_move(player, move, obstacle, self.last_move_reasoning, board)
-        if elapsed < 0.8:
-            time.sleep(0.8 - elapsed)
-
-        return move, obstacle
+        self._log_move(player, mv, obs, self.last_move_reasoning, board)
+        
+        # Minimum düşünme süresini garantile (gerçekçi görünmek için)
+        if elapsed < min_think_time:
+            time.sleep(min_think_time - elapsed)
+        
+        return mv, obs
 
     def get_reaction(self):
-        """En son üretilen duygu / tepki mesajı."""
         return self.current_message
 
-    # -------------------------------------------------------------------------
-    # EASY => ÖNCEKİ NORMAL
-    # -------------------------------------------------------------------------
+    # -------------------------------
+    # EASY => Sabit Derinlikli
+    # -------------------------------
     def _choose_move_old_normal(self, board, player, time_limit, start_time):
         """
-        Daha önce 'normal' olarak kullanılan mantık:
-          - Sabit derinlik (3-4)
-          - Minimax + alpha-beta
-          - Kısmen budama
+        İyileştirilmiş KOLAY mod:
+        - GÜVENLİK ÖNCELİKLİ: Kendini ablukaya sokmaz
+        - Bazen rastgele, bazen basit stratejik düşünme
+        - Çok basit pozisyon değerlendirmesi
         """
-        # Benzer mantığı barındıran fonksiyon
-        best_move = None
-        best_obstacle = None
-        best_score = float('-inf')
-
-        depth = self.base_depth  # genelde 3-4
         valid_moves = board.get_valid_moves(player)
-
-        # Rastgelelik çok düşük
-        if random.random() < 0.15:  # %15 rastgele
-            random.shuffle(valid_moves)
-            for mv in valid_moves:
-                temp_brd = self._clone_board(board)
-                temp_brd.move_piece(player, mv)
-                empties = self._get_empty_positions(temp_brd)
-                random.shuffle(empties)
-                for obs in empties:
-                    test_brd = self._clone_board(temp_brd)
-                    test_brd.place_obstacle(obs)
-                    if not test_brd.is_abluka(player) and len(test_brd.get_valid_moves(player)) > 0:
-                        self.last_move_reasoning = "EasyMod(RastgeleElleme)"
-                        return mv, obs
-
-        # Minimax
-        alpha = float('-inf')
-        beta = float('inf')
-
-        # Sıralama
-        valid_moves = sorted(
-            valid_moves,
-            key=lambda m: self._evaluate_move(board, player, m),
-            reverse=True
-        )
-        # En iyi 5 hamleyi incele
-        top_moves = valid_moves[:5]
-
-        for mv in top_moves:
-            if time.time() - start_time > time_limit:
-                break
-            temp_brd = self._clone_board(board)
-            temp_brd.move_piece(player, mv)
-
-            empties = self._get_empty_positions(temp_brd)
-            if len(empties) > 6:
-                empties = self._prune_obstacles(temp_brd, empties, player, top_k=6)
-
-            for obs in empties:
-                if time.time() - start_time > time_limit:
-                    break
-                test_brd = self._clone_board(temp_brd)
-                test_brd.place_obstacle(obs)
-                if test_brd.is_abluka(player):
-                    continue
-                score = self._minimax_evaluation(
-                    test_brd, depth, True, player, alpha, beta
-                )
-                if score > best_score:
-                    best_score = score
-                    best_move = mv
-                    best_obstacle = obs
-        if best_move is None:
-            # fallback
-            self.last_move_reasoning = "Easy fallback => random"
-            if valid_moves:
-                return valid_moves[0], self._get_empty_positions(board)[0]
-            return None, None
-        self.last_move_reasoning = "Easy => (previously normal) Minimax"
-        return best_move, best_obstacle
-
-    def _minimax_evaluation(self, board, depth, maximizing_player, main_player, alpha, beta):
-        """
-        Kısa bir minimax (derinliğe kadar) - zaman kontrolü YOK (easy).
-        """
-        if depth == 0:
-            return self._evaluate_board(board, main_player)
-        current = main_player if maximizing_player else ('W' if main_player == 'B' else 'B')
-        if board.is_abluka(current):
-            return -999999 if current == main_player else 999999
-        valid_moves = board.get_valid_moves(current)
         if not valid_moves:
-            return -999999 if current == main_player else 999999
+            return None, None
+        
+        opponent = 'W' if player == 'B' else 'B'
+        
+        # ÖNCE GÜVENLİ HAMLELERİ TOPLA
+        safe_moves = []
+        
+        print(f"[AI-KOLAY] {len(valid_moves)} hamle değerlendiriliyor...")
+        
+        for mv in valid_moves:
+            tmpb = self._clone_board(board)
+            tmpb.move_piece(player, mv)
+            empties = self._get_empty_positions(tmpb)
+            
+            # Her hamle için güvenli engelleri bul
+            for obs in empties:
+                is_safe, reason = self._is_safe_move(board, player, mv, obs)
+                
+                if is_safe:
+                    # Basit skor: sadece hamle sayısına bak
+                    tb2 = self._clone_board(tmpb)
+                    tb2.place_obstacle(obs)
+                    
+                    my_moves_after = len(tb2.get_valid_moves(player))
+                    opp_moves_after = len(tb2.get_valid_moves(opponent))
+                    
+                    # Basit değerlendirme
+                    simple_score = my_moves_after * 10 - opp_moves_after * 5
+                    
+                    # Kaçış yolları değerlendirmesi
+                    escape = self._get_escape_routes(tb2, player)
+                    simple_score += escape / 10
+                    
+                    safe_moves.append((mv, obs, simple_score))
+        
+        print(f"[AI-KOLAY] {len(safe_moves)} güvenli hamle bulundu")
+        
+        if not safe_moves:
+            print("[AI-KOLAY] UYARI: Güvenli hamle yok! En iyi kötü hamleyi seç")
+            # Acil durum: En azından kendini ablukaya sokmayanı seç
+            for mv in valid_moves[:3]:
+                tmpb = self._clone_board(board)
+                tmpb.move_piece(player, mv)
+                empties = self._get_empty_positions(tmpb)
+                for obs in empties[:5]:
+                    tb = self._clone_board(tmpb)
+                    tb.place_obstacle(obs)
+                    if not tb.is_abluka(player) and len(tb.get_valid_moves(player)) >= 2:
+                        self.last_move_reasoning = "Kolay => Acil durum hamlesi"
+                        return mv, obs
+            return None, None
+        
+        # Güvenli hamleler arasından seç
+        safe_moves.sort(key=lambda x: x[2], reverse=True)
+        
+        # %40 ihtimalle rastgele (ama güvenli) hamle
+        if random.random() < self.randomness and len(safe_moves) > 3:
+            # En iyi %70'lik dilimden rastgele seç
+            top_portion = max(3, int(len(safe_moves) * 0.7))
+            choice = random.choice(safe_moves[:top_portion])
+            self.last_move_reasoning = f"Kolay => Rastgele güvenli hamle (skor: {choice[2]:.0f})"
+            return choice[0], choice[1]
+        
+        # En iyi güvenli hamleyi seç
+        best = safe_moves[0]
+        self.last_move_reasoning = f"Kolay => En iyi güvenli hamle (skor: {best[2]:.0f})"
+        return best[0], best[1]
 
-        if maximizing_player:
+    def _minimax_evaluation(self, board, depth, maximizing, main_player, alpha, beta):
+        if depth==0:
+            return self._evaluate_board(board, main_player)
+        current = main_player if maximizing else ('W' if main_player=='B' else 'B')
+        if board.is_abluka(current):
+            return -999999 if current==main_player else 999999
+        val_moves = board.get_valid_moves(current)
+        if not val_moves:
+            return -999999 if current==main_player else 999999
+
+        if maximizing:
             value = float('-inf')
-            for mv in valid_moves[:4]:  # en fazla 4 hamleyi dene
-                new_brd = self._clone_board(board)
-                new_brd.move_piece(current, mv)
-                empties = self._get_empty_positions(new_brd)
+            for mv in val_moves[:4]:
+                b2 = self._clone_board(board)
+                b2.move_piece(current, mv)
+                empties = self._get_empty_positions(b2)
                 if empties:
-                    obs_pos = empties[0]
-                    new_brd.place_obstacle(obs_pos)
-                sc = self._minimax_evaluation(
-                    new_brd, depth - 1, not maximizing_player, main_player, alpha, beta
-                )
+                    b2.place_obstacle(empties[0])
+                sc = self._minimax_evaluation(b2, depth-1, False, main_player, alpha, beta)
                 value = max(value, sc)
                 alpha = max(alpha, value)
-                if beta <= alpha:
+                if beta<=alpha:
                     break
             return value
         else:
             value = float('inf')
-            for mv in valid_moves[:4]:
-                new_brd = self._clone_board(board)
-                new_brd.move_piece(current, mv)
-                empties = self._get_empty_positions(new_brd)
+            for mv in val_moves[:4]:
+                b2 = self._clone_board(board)
+                b2.move_piece(current, mv)
+                empties = self._get_empty_positions(b2)
                 if empties:
-                    obs_pos = empties[0]
-                    new_brd.place_obstacle(obs_pos)
-                sc = self._minimax_evaluation(
-                    new_brd, depth - 1, not maximizing_player, main_player, alpha, beta
-                )
+                    b2.place_obstacle(empties[0])
+                sc = self._minimax_evaluation(b2, depth-1, True, main_player, alpha, beta)
                 value = min(value, sc)
                 beta = min(beta, value)
-                if beta <= alpha:
+                if beta<=alpha:
                     break
             return value
 
-    # -------------------------------------------------------------------------
-    # NORMAL => ÖNCEKİ HARD
-    # -------------------------------------------------------------------------
+    # -------------------------------
+    # NORMAL => Iterative Deepening
+    # -------------------------------
     def _choose_move_old_hard(self, board, player, time_limit, start_time):
         """
-        Önceki 'hard' algoritma (iterative deepening + alpha-beta vb.)
+        İyileştirilmiş NORMAL mod:
+        - GÜVENLİK ÖNCELİKLİ: Gelecek turları simüle eder
+        - Daha akıllı strateji
+        - İyi pozisyon değerlendirmesi
+        - Rakibi sınırlamaya odaklanır
         """
-        best_move = None
-        best_obstacle = None
-        best_score = float('-inf')
-
         valid_moves = board.get_valid_moves(player)
-        opponent = 'W' if player == 'B' else 'B'
+        opponent = ('W' if player=='B' else 'B')
+        
+        print(f"[AI-NORMAL] {len(valid_moves)} hamle değerlendiriliyor...")
 
-        # Hızlı kazanma
+        # 1. ÖNCE HIZLI KAZANÇ KONTROL ET (ama güvenli bir şekilde)
         for mv in valid_moves:
+            tb = self._clone_board(board)
+            tb.move_piece(player, mv)
+            empties = self._get_empty_positions(tb)
+            
+            for obs in empties[:10]:
+                is_safe, _ = self._is_safe_move(board, player, mv, obs)
+                if not is_safe:
+                    continue
+                
+                testb = self._clone_board(tb)
+                testb.place_obstacle(obs)
+                
+                if testb.is_abluka(opponent):
+                    self.last_move_reasoning = "Normal => Güvenli direkt kazanç!"
+                    return mv, obs
+        
+        # 2. GÜVENLİ HAMLELERİ TOPLA
+        safe_moves = []
+        
+        for mv in valid_moves:
+            if time.time() - start_time > time_limit * 0.8:
+                break
+            
             tmpb = self._clone_board(board)
             tmpb.move_piece(player, mv)
             empties = self._get_empty_positions(tmpb)
+            
+            # Engel seçimini optimize et
+            if len(empties) > 10:
+                empties = self._prune_obstacles(tmpb, empties, player, 10)
+            
             for obs in empties:
+                if time.time() - start_time > time_limit * 0.9:
+                    break
+                
+                # Güvenlik kontrolü
+                is_safe, reason = self._is_safe_move(board, player, mv, obs)
+                if not is_safe:
+                    continue
+                
                 testb = self._clone_board(tmpb)
                 testb.place_obstacle(obs)
-                if testb.is_abluka(opponent) and not testb.is_abluka(player):
-                    self.last_move_reasoning = "Normal: Hızlı abluka"
-                    return mv, obs
-
-        # Iterative deepening
-        base_d = self.base_depth
-        max_depth = base_d + 2
-        for d in range(base_d, max_depth + 1):
-            if time.time() - start_time > time_limit * 0.8:
-                break
-            mv_, obs_, score_ = self._search_best_move(board, player, d, start_time, time_limit)
-            if mv_ is not None and score_ > best_score:
-                best_move = mv_
-                best_obstacle = obs_
-                best_score = score_
-            if score_ > 900000:
-                break
-
-        if best_move is None:
-            self.last_move_reasoning = "Normal fallback => Easy"
+                
+                # Pozisyon değerlendirmesi
+                score = self._evaluate_board(testb, player)
+                
+                # Kaçış yolları bonusu
+                escape = self._get_escape_routes(testb, player)
+                score += escape
+                
+                safe_moves.append((mv, obs, score))
+        
+        print(f"[AI-NORMAL] {len(safe_moves)} güvenli hamle bulundu")
+        
+        if not safe_moves:
+            print("[AI-NORMAL] UYARI: Güvenli hamle yok! Acil mod")
+            # Acil durum: En azından kendini ablukaya sokmayanı seç
+            for mv in valid_moves[:5]:
+                tmpb = self._clone_board(board)
+                tmpb.move_piece(player, mv)
+                empties = self._get_empty_positions(tmpb)[:10]
+                for obs in empties:
+                    tb = self._clone_board(tmpb)
+                    tb.place_obstacle(obs)
+                    if not tb.is_abluka(player) and len(tb.get_valid_moves(player)) >= 3:
+                        self.last_move_reasoning = "Normal => Acil durum hamlesi"
+                        return mv, obs
+            
+            # Son çare: Kolay moda geç
             return self._choose_move_old_normal(board, player, time_limit, start_time)
-
-        # Kendini abluka?
-        tmpb = self._clone_board(board)
-        tmpb.move_piece(player, best_move)
-        tmpb.place_obstacle(best_obstacle)
-        if tmpb.is_abluka(player):
-            self.last_move_reasoning = "Normal => Engelle kendini kısıtlıyor => easy fallback"
-            return self._choose_move_old_normal(board, player, time_limit, start_time)
-
-        # Engel rakibe etki etmedi mi?
-        op_moves_before = len(board.get_valid_moves(opponent))
-        t2 = self._clone_board(board)
-        t2.move_piece(player, best_move)
-        t2.place_obstacle(best_obstacle)
-        op_moves_after = len(t2.get_valid_moves(opponent))
-        if op_moves_before == op_moves_after and op_moves_before > 0:
-            empties2 = self._get_empty_positions(t2)
-            if len(empties2) > 1:
-                obstacles2 = self._prune_obstacles(t2, empties2, player, 3)
-                if obstacles2 and obstacles2[0] != best_obstacle:
-                    best_obstacle = obstacles2[0]
-                    self.last_move_reasoning += " + Engel revize"
-
-        self.last_move_reasoning = "Normal => (iterative deepening) Hard mantığı"
-        return best_move, best_obstacle
+        
+        # En iyi güvenli hamleyi seç
+        safe_moves.sort(key=lambda x: x[2], reverse=True)
+        
+        # %15 ihtimalle iyi hamlelerden rastgele seç
+        if random.random() < self.randomness and len(safe_moves) > 5:
+            top_portion = max(5, int(len(safe_moves) * 0.3))
+            choice = random.choice(safe_moves[:top_portion])
+            self.last_move_reasoning = f"Normal => İyi güvenli hamle (skor: {choice[2]:.0f})"
+            return choice[0], choice[1]
+        
+        best = safe_moves[0]
+        self.last_move_reasoning = f"Normal => En iyi güvenli hamle (skor: {best[2]:.0f})"
+        return best[0], best[1]
 
     def _search_best_move(self, board, player, depth, start_time, time_limit):
-        """
-        ÖNCEKİ HARD modun alt fonksiyonu: alpha-beta araması
-        """
-        best_move = None
-        best_obstacle = None
+        best_mv = None
+        best_obs = None
         best_score = float('-inf')
 
-        valid_moves = board.get_valid_moves(player)
-        if not valid_moves:
+        val_moves = board.get_valid_moves(player)
+        if not val_moves:
             return None, None, -999999
-        # budama
-        if len(valid_moves) > 6 and depth >= 3:
-            valid_moves = self._prune_moves(board, player, valid_moves, 6)
+        if len(val_moves)>6 and depth>=3:
+            val_moves = self._prune_moves(board, player, val_moves, 6)
 
         alpha = float('-inf')
         beta = float('inf')
-        opponent = 'W' if player == 'B' else 'B'
+        opponent = ('W' if player=='B' else 'B')
 
-        for mv in valid_moves:
-            if time.time() - start_time > time_limit * 0.9:
+        for mv in val_moves:
+            if time.time()-start_time>time_limit*0.9:
                 break
             tmpb = self._clone_board(board)
             tmpb.move_piece(player, mv)
             empties = self._get_empty_positions(tmpb)
-            if depth >= 3 and len(empties) > 6:
+            if depth>=3 and len(empties)>6:
                 empties = self._prune_obstacles(tmpb, empties, player, 6)
             for obs in empties:
-                if time.time() - start_time > time_limit:
+                if time.time()-start_time>time_limit:
                     break
                 testb = self._clone_board(tmpb)
                 testb.place_obstacle(obs)
@@ -485,749 +537,711 @@ class AIPlayer:
                     continue
                 if testb.is_abluka(opponent):
                     return mv, obs, 999999
-                score = self._alpha_beta_minimax(
-                    testb, depth, False, player, alpha, beta, start_time, time_limit
-                )
-                if score > best_score:
-                    best_score = score
-                    best_move = mv
-                    best_obstacle = obs
+                sc = self._alpha_beta_minimax(testb, depth, False, player, alpha, beta, start_time, time_limit)
+                if sc>best_score:
+                    best_score = sc
+                    best_mv = mv
+                    best_obs = obs
                 alpha = max(alpha, best_score)
-                if beta <= alpha:
+                if beta<=alpha:
                     break
-        return best_move, best_obstacle, best_score
+        return best_mv, best_obs, best_score
 
-    def _alpha_beta_minimax(self, board, depth, maximizing, main_player,
-                            alpha, beta, start_time, time_limit):
-        if time.time() - start_time > time_limit:
+    def _alpha_beta_minimax(self, board, depth, maximizing, main_player, alpha, beta, start_time, time_limit):
+        if time.time()-start_time>time_limit:
             return self._evaluate_board(board, main_player)
-        if depth == 0:
+        if depth==0:
             return self._evaluate_board(board, main_player)
 
-        current_player = main_player if maximizing else ('W' if main_player == 'B' else 'B')
-        opponent = 'W' if current_player == 'B' else 'B'
+        current = main_player if maximizing else ('W' if main_player=='B' else 'B')
+        opp = ('W' if current=='B' else 'B')
 
-        if board.is_abluka(current_player):
-            return -999999 if current_player == main_player else 999999
-        valid_moves = board.get_valid_moves(current_player)
-        if not valid_moves:
-            return -999999 if current_player == main_player else 999999
+        if board.is_abluka(current):
+            return -999999 if current==main_player else 999999
+        val_moves = board.get_valid_moves(current)
+        if not val_moves:
+            return -999999 if current==main_player else 999999
 
         if maximizing:
             value = float('-inf')
-            for mv in valid_moves:
-                if time.time() - start_time > time_limit:
-                    break
-                tb = self._clone_board(board)
-                tb.move_piece(current_player, mv)
-                empties = self._get_empty_positions(tb)
-                if len(empties) > 6:
-                    empties = self._prune_obstacles(tb, empties, current_player, 6)
+            for mv in val_moves:
+                if time.time()-start_time>time_limit: break
+                b2 = self._clone_board(board)
+                b2.move_piece(current, mv)
+                empties = self._get_empty_positions(b2)
+                if len(empties)>6:
+                    empties = self._prune_obstacles(b2, empties, current, 6)
                 for obs in empties:
-                    if time.time() - start_time > time_limit:
-                        break
-                    tb2 = self._clone_board(tb)
-                    tb2.place_obstacle(obs)
-                    if tb2.is_abluka(current_player):
+                    if time.time()-start_time>time_limit: break
+                    b3 = self._clone_board(b2)
+                    b3.place_obstacle(obs)
+                    if b3.is_abluka(current):
                         continue
-                    if tb2.is_abluka(opponent):
+                    if b3.is_abluka(opp):
                         return 999999
-                    sc = self._alpha_beta_minimax(
-                        tb2, depth - 1, False, main_player, alpha, beta, start_time, time_limit
-                    )
+                    sc = self._alpha_beta_minimax(b3, depth-1, False, main_player, alpha, beta, start_time, time_limit)
                     value = max(value, sc)
                     alpha = max(alpha, value)
-                    if beta <= alpha:
+                    if beta<=alpha:
                         break
-                if beta <= alpha:
+                if beta<=alpha:
                     break
             return value
         else:
             value = float('inf')
-            for mv in valid_moves:
-                if time.time() - start_time > time_limit:
-                    break
-                tb = self._clone_board(board)
-                tb.move_piece(current_player, mv)
-                empties = self._get_empty_positions(tb)
-                if len(empties) > 6:
-                    empties = self._prune_obstacles(tb, empties, current_player, 6)
+            for mv in val_moves:
+                if time.time()-start_time>time_limit: break
+                b2 = self._clone_board(board)
+                b2.move_piece(current, mv)
+                empties = self._get_empty_positions(b2)
+                if len(empties)>6:
+                    empties = self._prune_obstacles(b2, empties, current, 6)
                 for obs in empties:
-                    if time.time() - start_time > time_limit:
-                        break
-                    tb2 = self._clone_board(tb)
-                    tb2.place_obstacle(obs)
-                    if tb2.is_abluka(current_player):
+                    if time.time()-start_time>time_limit: break
+                    b3 = self._clone_board(b2)
+                    b3.place_obstacle(obs)
+                    if b3.is_abluka(current):
                         continue
-                    if tb2.is_abluka(main_player):
+                    if b3.is_abluka(main_player):
                         return -999999
-                    sc = self._alpha_beta_minimax(
-                        tb2, depth - 1, True, main_player, alpha, beta, start_time, time_limit
-                    )
+                    sc = self._alpha_beta_minimax(b3, depth-1, True, main_player, alpha, beta, start_time, time_limit)
                     value = min(value, sc)
                     beta = min(beta, value)
-                    if beta <= alpha:
+                    if beta<=alpha:
                         break
-                if beta <= alpha:
+                if beta<=alpha:
                     break
             return value
 
-    # -------------------------------------------------------------------------
-    # HARD => ULTRA / MACHINE LEARNING
-    # -------------------------------------------------------------------------
+    # -------------------------------
+    # HARD => Q-learning
+    # -------------------------------
     def _init_learning_system(self):
-        """Öğrenme sistemini başlat"""
-        import os
         import pickle
-        import numpy as np
-        
-        self.memory_file = "abluka_memory.pkl"
-        
-        # State değerlerini saklamak için Q-Table (sözlük yapısında)
+        self.memory_file = "abluka_qtable.pkl"
+
         if os.path.exists(self.memory_file):
             try:
                 with open(self.memory_file, 'rb') as f:
                     self.q_table = pickle.load(f)
-                print("[RL] Mevcut öğrenme modeli yüklendi, toplam durum sayısı:", len(self.q_table))
-            except Exception as e:
-                print("[RL] Model yüklenirken hata:", e)
+                print("[ML] Q tablosu yüklendi. Durum sayısı:", len(self.q_table))
+            except:
                 self.q_table = {}
+                print("[ML] Q tablosu yüklenemedi, sıfırdan başlıyor.")
         else:
             self.q_table = {}
-        
-        # Öğrenme parametreleri
-        self.learning_rate = 0.1      # Alfa - ne kadar hızlı öğrenecek
-        self.discount_factor = 0.95   # Gamma - gelecekteki ödülleri ne kadar değerli görecek
-        self.exploration_rate = 0.5   # Epsilon - keşif oranı (0.3'ten 0.5'e yükseltildi)
-        self.min_exploration_rate = 0.01  # Minimum keşif oranı 
-        self.exploration_decay = 0.995  # Her oyundan sonra keşif oranını azalt
-        
-        # Oyun hafızası
-        self.current_game_states = []  # Bu oyun için durum geçmişi
-        self.current_game_moves = []   # Bu oyun için hamle geçmişi
-        self.current_game_rewards = [] # Bu oyun için ödül geçmişi
-        
-        # Son oyundaki öğrenme bilgisini kaydet
+
+        # Parametreler
+        self.learning_rate = 0.1
+        self.discount_factor = 0.95
+        self.exploration_rate = 0.0  # İnsanla oynarken 0, self-play'de arttırılacak
+        self.min_exploration_rate = 0.0
+        self.exploration_decay = 0.99985
+
+        # Hafıza
+        self.current_game_states = []
+        self.current_game_rewards = []
+        self.current_game_moves = []
         self.learned_move_count = 0
         self.current_state = None
-        
-        print("[RL] Öğrenme sistemi başlatıldı.")
+
+        print("[ML] Q-learning sistemi başlatıldı.")
 
     def save_model(self):
-        """Q-table'ı diske kaydet"""
         if not self.learning_enabled:
             return
-            
         import pickle
         try:
             with open(self.memory_file, 'wb') as f:
                 pickle.dump(self.q_table, f)
-            print(f"[RL] Model kaydedildi. Toplam durum sayısı: {len(self.q_table)}")
+            print(f"[ML] Q tablosu kaydedildi. Durum sayısı: {len(self.q_table)}")
         except Exception as e:
-            print(f"[RL] Model kaydedilirken hata: {e}")
-
-    def _state_to_features(self, board, player):
-        """
-        Tahta durumundan öğrenilebilir özellikler çıkar.
-        Daha detaylı bir durum temsili kullanarak öğrenmeyi iyileştir.
-        """
-        opponent = 'W' if player == 'B' else 'B'
-        
-        # Taşların konumlarını al
-        my_pos = board.black_pos if player == 'B' else board.white_pos
-        op_pos = board.black_pos if opponent == 'B' else board.white_pos
-        
-        # Temel mobilite
-        my_moves = len(board.get_valid_moves(player))
-        op_moves = len(board.get_valid_moves(opponent))
-        
-        # Oyun alanının kaçta kaçı engelli?
-        obstacle_ratio = min(9, len(board.obstacles) // (board.size * board.size // 10))
-        
-        # Taşların birbirine olan mesafesi (Manhattan)
-        distance = abs(my_pos[0] - op_pos[0]) + abs(my_pos[1] - op_pos[1])
-        
-        # Taşların kuadrantı (0-1-2-3 şeklinde)
-        my_quad = (1 if my_pos[0] >= board.size // 2 else 0) + (2 if my_pos[1] >= board.size // 2 else 0)
-        op_quad = (1 if op_pos[0] >= board.size // 2 else 0) + (2 if op_pos[1] >= board.size // 2 else 0)
-        
-        # YENİ: Taşların tahta üzerindeki konumlarını normalize et (0-4 arası değerler)
-        # Daha hassas pozisyon bilgisi için
-        norm_my_row = min(4, my_pos[0] * 5 // board.size)  
-        norm_my_col = min(4, my_pos[1] * 5 // board.size)
-        norm_op_row = min(4, op_pos[0] * 5 // board.size)
-        norm_op_col = min(4, op_pos[1] * 5 // board.size)
-        
-        # YENİ: Taşların etrafındaki engel sayıları
-        my_obstacles = min(7, self._count_surrounding_obstacles(board, my_pos))
-        op_obstacles = min(7, self._count_surrounding_obstacles(board, op_pos))
-        
-        # YENİ: Merkeze olan uzaklık farkı
-        center = board.size // 2
-        my_center_dist = abs(my_pos[0] - center) + abs(my_pos[1] - center)
-        op_center_dist = abs(op_pos[0] - center) + abs(op_pos[1] - center)
-        center_diff = min(3, max(-3, op_center_dist - my_center_dist))
-        
-        # YENİ: Rakibin ne kadar sıkıştırıldığı (çevreleme oranı)
-        encirclement = min(9, int(self._calculate_encirclement(board, opponent) / 10))
-        
-        # YENİ: Köşelerle ilişki (köşelere ne kadar yakın?)
-        edge_distance = min(3, min(
-            my_pos[0], 
-            my_pos[1], 
-            board.size - 1 - my_pos[0], 
-            board.size - 1 - my_pos[1]
-        ))
-        
-        # Geliştirilmiş durum temsili - daha fazla özellik içeriyor
-        state = (
-            norm_my_row,         # 0-4 arası (5 değer) - kesin konum bilgisi
-            norm_my_col,         # 0-4 arası (5 değer)
-            norm_op_row,         # 0-4 arası (5 değer) 
-            norm_op_col,         # 0-4 arası (5 değer)
-            min(8, my_moves),    # 0-8 arası (9 değer)
-            min(8, op_moves),    # 0-8 arası (9 değer)
-            min(4, distance//2), # 0-4 arası (5 değer)
-            my_obstacles,        # 0-7 arası (8 değer)
-            op_obstacles,        # 0-7 arası (8 değer)
-            center_diff + 3,     # 0-6 arası (7 değer) (-3 ile +3 arası)
-            encirclement,        # 0-9 arası (10 değer)
-            edge_distance,       # 0-3 arası (4 değer)
-            obstacle_ratio       # 0-9 arası (10 değer)
-        )
-        
-        # Bu durum tanımı daha zengin bilgiler içeriyor ama hala yönetilebilir boyutta
-        return state
-
-    def _get_reward(self, board, player, move, obstacle, prev_state, new_state):
-        """Bir hamle için ödül hesapla"""
-        opponent = 'W' if player == 'B' else 'B'
-        
-        # Ana ödül bileşenleri
-        reward = 0
-        
-        # Rakibi ablukaya aldı mı? (kazandı mı?)
-        if board.is_abluka(opponent):
-            return 100  # Kazanma durumu, maksimum ödül
-        
-        # Kendini ablukaya aldı mı? (kaybetti mi?)  
-        if board.is_abluka(player):
-            return -80  # Kaybetme durumu cezası -50'den -80'e yükseltildi
-        
-        # Şu anki durum bilgileri
-        prev_my_moves = prev_state[2]  # kendi hareketleri
-        prev_op_moves = prev_state[3]  # rakip hareketleri
-        new_my_moves = new_state[2]    # hamleden sonra kendi hareketleri
-        new_op_moves = new_state[3]    # hamleden sonra rakip hareketleri
-        
-        # Önceki mesafe ve yeni mesafe
-        prev_distance = prev_state[4] * 2  # state'te //2 yapmıştık, geri çevir
-        new_distance = new_state[4] * 2
-        
-        # Ödül 1: Kendi hareket alanı arttıysa
-        if new_my_moves > prev_my_moves:
-            reward += 1
-        
-        # Ödül 2: Rakibin hareket sayısı azaldıysa
-        if new_op_moves < prev_op_moves:
-            reward += 2
-        
-        # Ceza 1: Kendi etrafını daraltıyorsa
-        if new_my_moves < prev_my_moves:
-            reward -= 3
-        
-        # Ödül 3: Rakibi köşeye sıkıştırma - (baskı etkisi)
-        # Etrafındaki doluluk oranına bakalım
-        my_pos = board.black_pos if player == 'B' else board.white_pos
-        op_pos = board.black_pos if opponent == 'B' else board.white_pos
-        
-        # Rakibin etrafındaki engel sayısını hesapla
-        op_obstacles = self._count_surrounding_obstacles(board, op_pos)
-        
-        # Rakibin köşeye/duvara yakın olması durumu
-        edge_dist = min(
-            op_pos[0], 
-            op_pos[1], 
-            board.size - 1 - op_pos[0], 
-            board.size - 1 - op_pos[1]
-        )
-        
-        if edge_dist <= 1 and op_obstacles >= 2:  # Köşede ve sıkışık
-            reward += 2
-            
-        # Ödül 4: Rakibe yaklaşmak (özellikle ilk hamleler)
-        # Move_counter'ı kullanarak ilk hamlelerde daha yüksek ödül ver
-        move_bonus = 1.0
-        if self.move_counter <= 10:  # İlk 10 hamlede bonus
-            move_bonus = 1.5
-            
-        if new_distance < prev_distance:
-            reward += 1 * move_bonus
-            
-        # Ödül/Ceza 5: Engel taşı stratejik mi yoksa boşa mı yerleştirildi?
-        if obstacle:
-            # Stratejik engel kontrolü: Rakibin önünü kapatan engel
-            # Rakibin yönüne doğru bakış
-            rakip_yonu = (
-                op_pos[0] - my_pos[0],
-                op_pos[1] - my_pos[1]
-            )
-            
-            # Engelin rakip yönünde olup olmadığını kontrol et
-            engel_yonu = (
-                obstacle[0] - my_pos[0],
-                obstacle[1] - my_pos[1]
-            )
-            
-            # İki vektör arasındaki yön benzerliği (dot product işareti)
-            ayni_yon = (rakip_yonu[0] * engel_yonu[0] + rakip_yonu[1] * engel_yonu[1]) > 0
-            
-            # Engel rakip ile arasında mı?
-            engel_mesafe = abs(obstacle[0] - my_pos[0]) + abs(obstacle[1] - my_pos[1])
-            rakip_mesafe = abs(op_pos[0] - my_pos[0]) + abs(op_pos[1] - my_pos[1])
-            
-            # Rakibin önünü kapatan engel
-            if ayni_yon and engel_mesafe < rakip_mesafe:
-                # Doğrudan rakibin önünde ve yakınındaki engeller
-                op_engel_mesafe = abs(obstacle[0] - op_pos[0]) + abs(obstacle[1] - op_pos[1])
-                if op_engel_mesafe <= 2:  # Rakibe yakın engeller
-                    reward += 10  # Stratejik engel bonusu
-            
-            # Engelin boşa yerleştirilip yerleştirilmediğini kontrol et
-            # Hiçbir oyuncunun alanını etkilemiyorsa
-            eski_benim = prev_my_moves
-            eski_rakip = prev_op_moves
-            
-            # Engel yokmuş gibi hesapla
-            temp_board = self._clone_board(board)
-            temp_board.grid[obstacle[0]][obstacle[1]] = None
-            # Engeli obstacles listesinden kaldırmaya çalışırken hata kontrolü yap
-            if obstacle in temp_board.obstacles:
-                temp_board.obstacles.remove(obstacle)
-            
-            benim_alan_engelsiz = len(temp_board.get_valid_moves(player))
-            rakip_alan_engelsiz = len(temp_board.get_valid_moves(opponent))
-            
-            if benim_alan_engelsiz == eski_benim and rakip_alan_engelsiz == eski_rakip:
-                reward -= 2  # Boşa yerleştirilen engel cezası
-        
-        # Nihai ödül
-        return reward
+            print("[ML] Kayıt hatası:", e)
 
     def _choose_move_ultra_ml(self, board, player, time_limit, start_time):
         """
-        Hard mod: Makine öğrenmesi entegre edilmiş gelişmiş strateji.
-        Bu fonksiyon öğrendikçe daha da güçlenecektir.
+        Q-learning tabanlı seçim (hard) - GÜVENLİK ÖNCELİKLİ
+        insan vs AI durumunda exploration=0, self-play'de >0.
         """
         if not self.learning_enabled:
-            self.last_move_reasoning = "Hard: Learning disabled, using fallback"
+            self.last_move_reasoning = "Hard disabled => fallback normal"
             return self._choose_move_old_hard(board, player, time_limit, start_time)
-            
-        # Şu anki durumu çıkar
-        current_state = self._state_to_features(board, player)
-        self.current_state = current_state
-        
-        # Anında kazanma kontrolü - her zaman öncelikli
-        immediate_win = self._check_immediate_win(board, player)
-        if immediate_win:
-            self.last_move_reasoning = "Hard-ML: Anında kazanma hamlesi!"
-            return immediate_win
-        
-        # Geçerli hamleleri al
-        valid_moves = board.get_valid_moves(player)
-        opponent = 'W' if player == 'B' else 'B'
-        
-        # Hamle seçimi - epsilon-greedy politikası
-        # Self-play ve normal oyun ayrımı: 
-        # Self-play sırasında normal exploration rate kullan
-        # Normal insan oyununda exploration_rate = 0 (pure exploitation)
-        import random
-        import math
-        
-        # İnsan karşısında exploration yok (self_play metodunda çağrılmıyorsa)
-        actual_exploration_rate = 0.0 if not hasattr(self, '_in_self_play') else self.exploration_rate
-        
-        is_exploration = random.random() < actual_exploration_rate
-        
-        if is_exploration:
-            # Keşif modu - rastgele ama akıllıca
-            self.last_move_reasoning = "Hard-ML: Keşif modu (epsilon-greedy)"
-            
-            # Tamamen rastgele değil, daha akıllı keşif
-            # Hamleleri değerlendir ve top %70'ini seç
-            scored_moves = []
-            for move in valid_moves:
-                score = self._evaluate_move(board, player, move)
-                scored_moves.append((move, score))
-                
-            # Hamleleri sırala ve en iyi %70'ini al
-            scored_moves.sort(key=lambda x: x[1], reverse=True)
-            exploration_pool = scored_moves[:max(1, int(len(scored_moves) * 0.7))]
-            
-            # Bu havuzdan rastgele seç
-            selected_move, _ = random.choice(exploration_pool)
-            
-            # Şimdi engelleri değerlendir
-            move_board = self._clone_board(board)
-            move_board.move_piece(player, selected_move)
-            
-            # Engel konumlarını al
-            empties = self._get_empty_positions(move_board)
-            
-            if not empties:
-                return self._choose_move_old_hard(board, player, time_limit, start_time)
-            
-            # Kendini ablukaya almayan hamle bul
-            for move in empties:
-                move_board = self._clone_board(board)
-                move_board.place_obstacle(move)
-                
-                # Kendimizi ablukaya almadığından emin ol
-                if move_board.is_abluka(player) or len(move_board.get_valid_moves(player)) == 0:
-                    continue
-                    
-                # Rakibi ablukaya alıyorsa hemen seç
-                if move_board.is_abluka(opponent):
-                    self.last_move_reasoning = "Hard-ML: Keşif sırasında abluka!"
-                    return selected_move, move
-            
-            # Güvenli hamle bulunamadıysa fallback
-            return self._choose_move_old_hard(board, player, time_limit, start_time)
-        
-        # Exploitation - öğrenilen bilgileri kullan
-        self.last_move_reasoning = "Hard-ML: Öğrenilen bilgileri kullanma"
-        
-        best_move = None
-        best_obstacle = None
-        best_value = float('-inf')
-        best_state = None
-        
-        # Bütün olası hamleleri dene ve değerlendir
-        for move in valid_moves:
-            move_board = self._clone_board(board)
-            move_board.move_piece(player, move)
-            
-            # Engel konumlarını al
-            empties = self._get_empty_positions(move_board)
-            
-            # Çok fazla engel varsa budalım
-            if len(empties) > 8:
-                empties = self._prune_obstacles(move_board, empties, player, 8)
-            
-            # Engelleri değerlendir
-            for obs_pos in empties:
-                test_board = self._clone_board(move_board)
-                test_board.place_obstacle(obs_pos)
-                
-                # Kendimizi ablukaya almadığından emin ol
-                if test_board.is_abluka(player) or len(test_board.get_valid_moves(player)) == 0:
-                    continue
-                    
-                # Rakibi ablukaya alıyorsa hemen seç
-                if test_board.is_abluka(opponent):
-                    self.last_move_reasoning = "Hard-ML: Abluka hamlesi!"
-                    return move, obs_pos
-                
-                # Bu hareketin durumunu hesapla
-                new_state = self._state_to_features(test_board, player)
-                
-                # Q değerini sözlükten bul veya varsayılan değeri kullan
-                state_value = self.q_table.get(new_state, 0)
-                
-                # Biraz da heuristic değerlendirme ekle (hibrit yaklaşım)
-                heuristic_value = self._evaluate_board(test_board, player) / 1000  # Normalize et
-                
-                # Toplam değer
-                total_value = state_value + heuristic_value
-                
-                # En iyi hamleyi güncelle
-                if total_value > best_value:
-                    best_value = total_value
-                    best_move = move
-                    best_obstacle = obs_pos
-                    best_state = new_state
-        
-        # Eğer iyi bir hamle bulunamadıysa, fallback stratejileri kullan
-        if best_move is None or best_obstacle is None:
-            self.last_move_reasoning = "Hard-ML: Uygun hamle bulunamadı, fallback"
-            return self._choose_move_old_hard(board, player, time_limit, start_time)
-        
-        # Hamleyi kaydet (sonradan öğrenmek için)
-        if self.current_state and best_state:
-            self.current_game_states.append(self.current_state)
-            self.current_game_moves.append((best_move, best_obstacle))
-            
-            # Hamle öncesi durumu ve sonrası durumu karşılaştırarak bir ödül hesapla
-            reward = self._get_reward(board, player, best_move, best_obstacle, 
-                                    self.current_state, best_state)
-            self.current_game_rewards.append(reward)
-            
-            # Hamlenin öğrenme puanını güncelle
-            self._update_q_value(self.current_state, best_state, reward)
-            
-            self.learned_move_count += 1
-            
-            # Modeli belirli aralıklarla kaydet
-            if self.learned_move_count % 5 == 0:
-                self.save_model()
-                
-        # En iyi hamleyi döndür
-        value_text = f"{best_value:.2f}" if best_value != float('-inf') else "N/A"
-        self.last_move_reasoning += f" (Değer: {value_text}, Öğrenilen toplam durum: {len(self.q_table)})"
-        
-        return best_move, best_obstacle
 
-    def _update_q_value(self, state, next_state, reward):
-        """Q değerini güncelle - Q-learning algoritması"""
-        if not self.learning_enabled:
-            return
+        # Durum
+        st = self._state_to_features(board, player)
+        self.current_state = st
+
+        # Hızlı abluka? (ama güvenli)
+        immediate = self._check_immediate_win(board, player)
+        if immediate:
+            mv, obs = immediate
+            # Güvenlik kontrolü
+            is_safe, _ = self._is_safe_move(board, player, mv, obs)
+            if is_safe:
+                self.last_move_reasoning = "ML => Güvenli ani kazanma"
+                return immediate
+            else:
+                print("[AI-ZOR] Kazanma hamlesi güvenli değil, devam ediyorum")
+
+        val_moves = board.get_valid_moves(player)
+        if not val_moves:
+            return None, None
+        
+        opponent = 'W' if player == 'B' else 'B'
+
+        # Self-play varsa explor, yoksa 0
+        actual_expl = self.exploration_rate if hasattr(self,'_in_self_play') and self._in_self_play else 0.0
+        is_explore = (random.random()<actual_expl)
+
+        print(f"[AI-ZOR] {len(val_moves)} hamle değerlendiriliyor (exploration: {actual_expl:.3f})...")
+
+        # GÜVENLİ HAMLELERİ TOPLA
+        safe_moves = []
+        
+        for mv in val_moves:
+            tmpb = self._clone_board(board)
+            tmpb.move_piece(player, mv)
+            empties = self._get_empty_positions(tmpb)
             
-        # Mevcut değeri al (yoksa 0)
-        current_q = self.q_table.get(state, 0)
+            if len(empties) > 12:
+                empties = self._prune_obstacles(tmpb, empties, player, 12)
+            
+            for obs in empties:
+                # Güvenlik kontrolü
+                is_safe, reason = self._is_safe_move(board, player, mv, obs)
+                if not is_safe:
+                    continue
+                
+                tb2 = self._clone_board(tmpb)
+                tb2.place_obstacle(obs)
+                
+                # Rakibi ablukaya aldık mı?
+                if tb2.is_abluka(opponent):
+                    self.last_move_reasoning = "ML => Güvenli direkt abluka"
+                    return mv, obs
+                
+                # Q-value ve heuristic
+                nxt = self._state_to_features(tb2, player)
+                qv = self.q_table.get(nxt, 0)
+                heur = self._evaluate_board(tb2, player) / 2000.0
+                
+                # Kaçış yolları bonusu
+                escape = self._get_escape_routes(tb2, player)
+                escape_bonus = escape / 100.0
+                
+                val = qv * 1.5 + heur + escape_bonus
+                
+                safe_moves.append((mv, obs, val, nxt, qv))
         
-        # Bir sonraki durumun değerini al (yoksa 0)
-        next_q = self.q_table.get(next_state, 0)
+        print(f"[AI-ZOR] {len(safe_moves)} güvenli hamle bulundu")
         
-        # Q öğrenme formülü: Q(s,a) = Q(s,a) + alpha * (reward + gamma * max(Q(s',a')) - Q(s,a))
-        new_q = current_q + self.learning_rate * (reward + self.discount_factor * next_q - current_q)
+        if not safe_moves:
+            print("[AI-ZOR] UYARI: Güvenli hamle yok! Normal moda geçiyorum")
+            return self._choose_move_old_hard(board, player, time_limit, start_time)
         
-        # Q tablosunu güncelle
-        self.q_table[state] = new_q
+        # Sıralama
+        safe_moves.sort(key=lambda x: x[2], reverse=True)
+        
+        if is_explore:
+            # Exploration: En iyi %50'lik dilimden seç
+            self.last_move_reasoning = "ML => Epsilon-greedy güvenli exploration"
+            top_portion = max(3, int(len(safe_moves) * 0.5))
+            best_move, best_obs, best_value, best_state, q_val = random.choice(safe_moves[:top_portion])
+        else:
+            # Exploitation: En iyi güvenli hamle
+            best_move, best_obs, best_value, best_state, q_val = safe_moves[0]
+            self.last_move_reasoning = "ML => Q + heuristic + safety"
+        
+        # Öğrenme (sadece self-play'de)
+        if self.current_state and best_state:
+            rew = self._get_reward(board, player, best_move, best_obs, self.current_state, best_state)
+            self.current_game_states.append(self.current_state)
+            self.current_game_rewards.append(rew)
+            if hasattr(self,'_in_self_play') and self._in_self_play:
+                self._update_q_value(self.current_state, best_state, rew)
+                self.learned_move_count += 1
+                if self.learned_move_count % 5 == 0:
+                    self.save_model()
+        
+        val_s = f"{best_value:.2f} (Q:{q_val:.2f})"
+        self.last_move_reasoning += f" => {val_s}, Qsize={len(self.q_table)}"
+        return best_move, best_obs
+
+    def _update_q_value(self, s0, s1, reward):
+        oldq = self.q_table.get(s0,0)
+        nextq = self.q_table.get(s1,0)
+        newq = oldq + self.learning_rate*(reward + self.discount_factor*nextq - oldq)
+        newq = max(-2000, min(2000, newq))
+        self.q_table[s0] = newq
 
     def game_over_update(self, winner, player):
-        """Oyun bittiğinde öğrenme güncellemelerini yap"""
-        if not self.learning_enabled or len(self.current_game_states) == 0:
+        """Oyun bitince geriye dönük update."""
+        if not self.learning_enabled or not self.current_game_states:
             return
-            
-        print(f"\n[RL] Oyun sonu öğrenmesi başlıyor...")
-        print(f"[RL] Öğrenilen durumlar: {len(self.current_game_states)}")
-        print(f"[RL] Kazanan oyuncu: {'AI' if winner == player else 'Rakip'}")
-        
-        # Öğrenilecek durum sayısını hatırla
-        old_state_count = len(self.q_table)
-            
-        # Kazanma/kaybetme durumuna göre son hamlenin ödülünü ayarla
-        final_reward = 200 if winner == player else -50
-        
-        # Son hamleyi güncelle
-        if len(self.current_game_states) > 0:
-            self.current_game_rewards[-1] = final_reward
-        
-        # Tüm oyun geçmişini geriye doğru güncelleyerek öğren (Temporal Difference Learning)
-        cumulative_reward = final_reward
-        
-        # Hamleleri sondan başa doğru değerlendir
-        for i in range(len(self.current_game_states) - 1, -1, -1):
-            state = self.current_game_states[i]
-            next_state = self.current_game_states[i] if i == len(self.current_game_states) - 1 else self.current_game_states[i + 1]
-            
-            # Önceki Q değerini al
-            old_q = self.q_table.get(state, 0)
-            
-            # Q değerini güncelle
-            current_q = self.q_table.get(state, 0)
-            next_q = self.q_table.get(next_state, 0)
-            new_q = current_q + self.learning_rate * (cumulative_reward + self.discount_factor * next_q - current_q)
-            self.q_table[state] = new_q
-            
-            # Log düşelim
-            if i % 5 == 0:  # Her 5 durumda bir log (çok fazla log olmaması için)
-                print(f"[RL] Durum #{i}: Q değeri {old_q:.2f} -> {new_q:.2f} (değişim: {new_q-old_q:.2f})")
-            
-            # Ödülü her adımda azalt (geriye doğru)
-            cumulative_reward *= self.discount_factor
-        
-        # Yeni öğrenilen toplam durum sayısı
-        new_states_count = len(self.q_table) - old_state_count
-        
-        print(f"[RL] Oyun sonucu öğrenme tamamlandı!")
-        print(f"[RL] Toplam durum sayısı: {len(self.q_table)} (bu oyunda öğrenilen yeni durumlar: {new_states_count})")
-        
-        # Öğrenilen bilgiyi kaydet
+        print("[ML] Oyun sonu öğrenimi başlıyor...")
+        print(f"[ML] Bu oyunda durum sayısı: {len(self.current_game_states)}. Kazanan: {winner} / Biz: {player}")
+
+        old_count = len(self.q_table)
+        if winner=='B':
+            win_reward=150
+            lose_penalty=-50
+        else:
+            win_reward=300
+            lose_penalty=-100
+
+        final_r = win_reward if winner==player else lose_penalty
+        self.current_game_rewards[-1] = final_r
+        cum = final_r
+        random_factor = 0.05 if winner==player else 0.0
+
+        for i in range(len(self.current_game_states)-1, -1, -1):
+            st = self.current_game_states[i]
+            nxt_st = (st if i==len(self.current_game_states)-1 else self.current_game_states[i+1])
+            oldq = self.q_table.get(st,0)
+            nxtq = self.q_table.get(nxt_st,0)
+            import random
+            if winner==player and random.random()<random_factor:
+                noise = (random.random()-0.5)*5
+                cum += noise
+            new_q = oldq + self.learning_rate*(cum + self.discount_factor*nxtq - oldq)
+            new_q = max(-2000, min(2000, new_q))
+            self.q_table[st] = new_q
+            if i%5==0:
+                print(f"[ML] Durum {i}: Q {oldq:.2f}->{new_q:.2f}")
+
+            cum*=self.discount_factor
+
+        new_states = len(self.q_table)-old_count
+        print(f"[ML] Oyun sonu öğrenme tamam. Q tablo size={len(self.q_table)}, bu oyunda +{new_states}")
         self.save_model()
-        
-        # Yeni oyun için sıfırla
-        self.current_game_states = []
-        self.current_game_moves = []
-        self.current_game_rewards = []
-        
-        # Keşif oranını azalt (dinamik keşif)
-        self.exploration_rate = max(self.min_exploration_rate, 
-                                   self.exploration_rate * self.exploration_decay)
-        print(f"[RL] Yeni keşif oranı: {self.exploration_rate:.4f}")
 
-    def get_learning_stats(self):
-        """Öğrenme istatistiklerini dön"""
-        if not self.learning_enabled:
-            return {"enabled": False}
-            
-        return {
-            "enabled": True,
-            "total_states": len(self.q_table),
-            "current_game_states": len(self.current_game_states),
-            "learning_rate": self.learning_rate,
-            "exploration_rate": self.exploration_rate,
-            "last_move_reasoning": self.last_move_reasoning
-        }
+        self.current_game_states=[]
+        self.current_game_rewards=[]
+        self.current_game_moves=[]
 
-    # -------------------------------------------------------------------------
+        # exploration azalt
+        self.exploration_rate = max(self.min_exploration_rate,self.exploration_rate*self.exploration_decay)
+        print(f"[ML] exploration => {self.exploration_rate:.4f}")
+
+    # -------------------------------------
     # Yardımcı Metotlar
-    # -------------------------------------------------------------------------
+    # -------------------------------------
     def _check_immediate_win(self, board, player):
-        """Rakibi hemen ablukaya alacak hamle varsa onu döndür."""
-        opp = 'W' if player == 'B' else 'B'
-        valid_moves = board.get_valid_moves(player)
-        for mv in valid_moves:
-            tb = self._clone_board(board)
-            tb.move_piece(player, mv)
-            empties = self._get_empty_positions(tb)
+        opp = ('W' if player=='B' else 'B')
+        moves = board.get_valid_moves(player)
+        for mv in moves:
+            tmp = self._clone_board(board)
+            tmp.move_piece(player, mv)
+            empties = self._get_empty_positions(tmp)
             for obs in empties:
-                testb = self._clone_board(tb)
-                testb.place_obstacle(obs)
-                if not testb.is_abluka(player) and testb.is_abluka(opp):
-                    return (mv, obs)
+                tb2 = self._clone_board(tmp)
+                tb2.place_obstacle(obs)
+                if not tb2.is_abluka(player) and tb2.is_abluka(opp):
+                    return (mv,obs)
         return None
 
     def _evaluate_board(self, board, main_player):
         """
-        Genel (iyileştirilmiş) heuristik: 
-        - Mobilite
-        - BFS alan farkı
-        - Çevreleme
-        - Engeller
-        - vs.
+        İyileştirilmiş tahta değerlendirme fonksiyonu
+        Daha gerçekçi stratejik düşünme için ağırlıklar ayarlandı
         """
         my_moves = board.get_valid_moves(main_player)
         if not my_moves:
             return -999999
-
-        opponent = 'W' if main_player == 'B' else 'B'
-        op_moves = board.get_valid_moves(opponent)
+        opp = ('W' if main_player=='B' else 'B')
+        op_moves = board.get_valid_moves(opp)
         if not op_moves:
             return 999999
 
-        # mobilite
-        mobil_score = (len(my_moves)*10) - (len(op_moves)*6)
+        # 1. MOBİLİTE (Hareket özgürlüğü) - EN ÖNEMLİ
+        # Daha fazla hamle seçeneği = daha iyi pozisyon
+        mobility_score = (len(my_moves) * 25) - (len(op_moves) * 20)
+        
+        # Kritik durum: Rakibi çok sınırlandır
+        if len(op_moves) <= 2:
+            mobility_score += 200  # Rakip neredeyse ablukada
+        elif len(op_moves) <= 4:
+            mobility_score += 80   # Rakip zorlanıyor
+        
+        # Kendi durumum kritik mi?
+        if len(my_moves) <= 2:
+            mobility_score -= 150  # Tehlike!
+        elif len(my_moves) <= 4:
+            mobility_score -= 50   # Dikkatli ol
 
-        # BFS alan
+        # 2. ALAN KONTROLÜ - BFS ile erişilebilir alan
         my_area = self._flood_fill_area(board, main_player)
-        op_area = self._flood_fill_area(board, opponent)
-        area_score = (my_area - op_area)*4
+        op_area = self._flood_fill_area(board, opp)
+        area_score = (my_area - op_area) * 8
+        
+        # Alan avantajı büyükse bonus
+        if my_area > op_area * 1.5:
+            area_score += 50
 
-        # Çevreleme
-        encirc = self._calculate_encirclement(board, opponent)
-        enc_score = encirc*8
+        # 3. ÇEVRELEME (Rakibi sınırlama)
+        encirclement = self._calculate_encirclement(board, opp) * 12
+        
+        # Rakip iyice çevriliyorsa büyük bonus
+        if encirclement > 60:
+            encirclement += 100
 
-        # Merkeze yakınlık vs.
+        # 4. MERKEZ KONTROLÜ - Stratejik pozisyon
         mp = board.black_pos if main_player=='B' else board.white_pos
-        op = board.black_pos if opponent=='B' else board.white_pos
-        center = board.size // 2
-        my_center_dist = abs(mp[0]-center) + abs(mp[1]-center)
-        op_center_dist = abs(op[0]-center) + abs(op[1]-center)
-        center_diff = (op_center_dist - my_center_dist)*2
+        op = board.black_pos if opp=='B' else board.white_pos
+        c = board.size // 2
+        
+        # Merkeze olan uzaklık (Manhattan distance)
+        my_center_dist = abs(mp[0] - c) + abs(mp[1] - c)
+        op_center_dist = abs(op[0] - c) + abs(op[1] - c)
+        
+        # Oyun başında merkez önemli, sonda daha az
+        game_progress = len(board.obstacles) / 40.0  # 0 ile 1 arası
+        center_weight = 15 * (1 - game_progress * 0.5)  # Oyun ilerledikçe azal
+        center_score = (op_center_dist - my_center_dist) * center_weight
 
-        # Etraftaki engel farkı
-        my_obs = self._count_surrounding_obstacles(board, mp)
-        op_obs = self._count_surrounding_obstacles(board, op)
-        obs_diff = (op_obs - my_obs)*5
+        # 5. ENGEL STRATEJİSİ
+        my_obstacles = self._count_surrounding_obstacles(board, mp)
+        op_obstacles = self._count_surrounding_obstacles(board, op)
+        
+        # Rakibin etrafında engel iyi, kendi etrafımda kötü
+        obstacle_score = (op_obstacles - my_obstacles) * 18
+        
+        # Çok fazla engel kendimi köşeye sıkıştırabilir
+        if my_obstacles >= 5:
+            obstacle_score -= 100  # Tehlikeli durum
+        
+        # Rakip köşede ve etrafı engellerle doluysa çok iyi
+        if op_obstacles >= 5 and len(op_moves) <= 4:
+            obstacle_score += 120
 
-        return mobil_score + area_score + enc_score + center_diff + obs_diff
+        # 6. KÖŞE VE KENAR CEZASI
+        # Köşelerde sıkışmak kötü
+        corner_penalty = 0
+        edges = [0, board.size - 1]
+        if mp[0] in edges and mp[1] in edges:
+            corner_penalty -= 80  # Köşede olmak tehlikeli
+        elif mp[0] in edges or mp[1] in edges:
+            corner_penalty -= 25  # Kenarda olmak biraz kötü
+        
+        # Rakip köşedeyse iyi
+        if op[0] in edges and op[1] in edges:
+            corner_penalty += 60
+        elif op[0] in edges or op[1] in edges:
+            corner_penalty += 20
+
+        # 7. TAKTİKSEL MESAFE
+        # Oyun sonuna doğru rakibe çok yakın olmak riskli olabilir
+        distance = abs(mp[0] - op[0]) + abs(mp[1] - op[1])
+        distance_score = 0
+        if distance <= 2 and len(my_moves) < len(op_moves):
+            distance_score -= 30  # Yakınım ama dezavantajlıyım
+        elif distance >= 5 and len(op_moves) <= 3:
+            distance_score += 40  # Uzaktayım ve rakip sıkışık
+
+        # TOPLAM SKOR
+        total = (
+            mobility_score +      # En önemli
+            area_score +          
+            encirclement +        
+            center_score +        
+            obstacle_score +      
+            corner_penalty +      
+            distance_score
+        )
+        
+        return total
 
     def _calculate_win_probability(self, board, player):
-        # Basit oransal yaklaşım
         opp = 'W' if player=='B' else 'B'
+        mym = len(board.get_valid_moves(player))
+        opm = len(board.get_valid_moves(opp))
+        if mym==0: return 5.0
+        if opm==0: return 95.0
+        ratio = mym/max(1,opm)
+        ratio = min(ratio,3.0)
+        prob = 50+(ratio-1)*20
+        return max(5,min(95,prob))
+
+    def _state_to_features(self, board, player):
+        opp = ('W' if player=='B' else 'B')
+        my_pos = board.black_pos if player=='B' else board.white_pos
+        op_pos = board.black_pos if opp=='B' else board.white_pos
+
         my_moves = len(board.get_valid_moves(player))
         op_moves = len(board.get_valid_moves(opp))
-        if my_moves == 0:
-            return 5.0
-        if op_moves == 0:
-            return 95.0
-        ratio = my_moves / max(1, op_moves)
-        ratio = min(ratio, 3.0)
-        prob = 50 + (ratio-1)*20  # oransal kabaca
-        return max(5, min(95, prob))
+        dist = abs(my_pos[0]-op_pos[0]) + abs(my_pos[1]-op_pos[1])
+        obstacle_ratio = min(9, len(board.obstacles)//(board.size*board.size//10))
 
+        my_obs = self._count_surrounding_obstacles(board,my_pos)
+        op_obs = self._count_surrounding_obstacles(board,op_pos)
+
+        c = board.size//2
+        my_c = abs(my_pos[0]-c)+abs(my_pos[1]-c)
+        op_c = abs(op_pos[0]-c)+abs(op_pos[1]-c)
+        center_diff = min(3,max(-3,op_c-my_c))
+        enc = min(9,int(self._calculate_encirclement(board,opp)/10))
+
+        edge_dist = min(my_pos[0],my_pos[1],board.size-1-my_pos[0],board.size-1-my_pos[1])
+        edge_dist = min(3,edge_dist)
+
+        nr_my_r = min(4,my_pos[0]*5//board.size)
+        nr_my_c = min(4,my_pos[1]*5//board.size)
+        nr_op_r = min(4,op_pos[0]*5//board.size)
+        nr_op_c = min(4,op_pos[1]*5//board.size)
+
+        # self-play esnasında ufak random (opsiyonel)
+        if hasattr(self,'_in_self_play') and random.random()<0.03:
+            if random.random()<0.5 and nr_my_r>0:
+                nr_my_r-=1
+
+        # Oyuncu kim => 0/1
+        player_id = 0 if player=='B' else 1
+
+        return (
+            player_id,
+            nr_my_r,nr_my_c,
+            nr_op_r,nr_op_c,
+            min(8,my_moves), min(8,op_moves),
+            min(4,dist//2),
+            min(7,my_obs),min(7,op_obs),
+            center_diff+3,
+            enc,
+            edge_dist,
+            obstacle_ratio
+        )
+
+    def _get_reward(self, board, player, move, obs, s0, s1):
+        # Basit reward
+        opp = ('W' if player=='B' else 'B')
+        if board.is_abluka(opp):
+            return 100
+        if board.is_abluka(player):
+            return -80
+        return 0  # Ara ödüller opsiyonel
+
+    def do_self_play(self, game_count=10):
+        """Kendi kendine oyun oynayıp Q tablosu eğitimi."""
+        if not self.learning_enabled:
+            print("[ML] Self play sadece hard modda.")
+            return
+        from abluka.game_logic import Game
+
+        print("[ML] Self-play başlıyor... Oyun sayısı:", game_count)
+        start_time = time.time()
+        self._in_self_play = True
+
+        # Self-play modunda exploration açalım (ör: 0.3)
+        old_exp = self.exploration_rate
+        self.exploration_rate = 0.5
+
+        old_size = len(self.q_table)
+
+        black_wins=0
+        white_wins=0
+
+        for i in range(game_count):
+            game = Game()
+            # Rastgele açılış
+            if random.random()<0.5:
+                # 1-3 rastgele hamle
+                pre = random.randint(1,3)
+                for _ in range(pre):
+                    if game.game_over: break
+                    cp = game.current_player
+                    mv_list = game.board.get_valid_moves(cp)
+                    if not mv_list: break
+                    mv = random.choice(mv_list)
+                    tmpb = self._clone_board(game.board)
+                    tmpb.move_piece(cp, mv)
+                    empties = self._get_empty_positions(tmpb)
+                    if empties:
+                        ob = random.choice(empties)
+                        game.make_move(mv, ob)
+
+            mv_count=0
+            while not game.game_over and mv_count<50:
+                mv_count+=1
+                cp = game.current_player
+                # normalde siyah/beyaz exploration'ı ayarlayabilirsiniz
+                move, obstacle = self._choose_move_ultra_ml(game.board, cp, 1.0, time.time())
+                if not move or not obstacle:
+                    game.game_over=True
+                    game.winner=('W' if cp=='B' else 'B')
+                else:
+                    game.make_move(move, obstacle)
+
+            if game.winner=='B':
+                black_wins+=1
+            elif game.winner=='W':
+                white_wins+=1
+
+            final_w = game.winner if game.winner else random.choice(['B','W'])
+            self.game_over_update(final_w,'B')
+            self.current_game_states=[]
+            self.current_game_rewards=[]
+            self.current_game_moves=[]
+            self.game_over_update(final_w,'W')
+
+        self._in_self_play=False
+        self.exploration_rate = old_exp
+
+        new_size = len(self.q_table)-old_size
+        print(f"[ML] Self-play bitti. Eklenen durum: {new_size}, Siyah={black_wins}, Beyaz={white_wins}")
+        self.save_model()
+
+        return new_size
+
+    # ----------------------------------------------------
+    # Yardımcı
+    # ----------------------------------------------------
     def _flood_fill_area(self, board, player):
         start = board.black_pos if player=='B' else board.white_pos
-        visited = set()
-        stack = [start]
-        count = 0
+        visited=set()
+        stack=[start]
+        cnt=0
         while stack:
-            r, c = stack.pop()
-            if (r, c) in visited:
+            r,c = stack.pop()
+            if (r,c) in visited:
                 continue
-            visited.add((r, c))
+            visited.add((r,c))
             cell = board.grid[r][c]
-            if cell is None or cell == player:
-                count += 1
-                # 8 yön
-                for dr, dc in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,1),(-1,1),(1,-1)]:
-                    rr = r+dr
-                    cc = c+dc
-                    if 0 <= rr < board.size and 0 <= cc < board.size:
-                        if (rr, cc) not in visited:
-                            cell2 = board.grid[rr][cc]
-                            if cell2 is None or cell2 == player:
-                                stack.append((rr, cc))
-        return count
+            if cell is None or cell==player:
+                cnt+=1
+                for dr,dc in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,1),(-1,1),(1,-1)]:
+                    rr=r+dr
+                    cc=c+dc
+                    if 0<=rr<board.size and 0<=cc<board.size:
+                        if (rr,cc) not in visited:
+                            c2 = board.grid[rr][cc]
+                            if c2 is None or c2==player:
+                                stack.append((rr,cc))
+        return cnt
 
     def _calculate_encirclement(self, board, opponent):
-        op_pos = board.black_pos if opponent=='B' else board.white_pos
-        reachable = self._flood_fill_area(board, opponent)
-        total = board.size*board.size - len(board.obstacles)
-        enc = 1.0 - (reachable / max(1, total))
+        opp_pos = board.black_pos if opponent=='B' else board.white_pos
+        reach = self._flood_fill_area(board, opponent)
+        total_free = board.size*board.size - len(board.obstacles)
+        enc = 1.0 - (reach/max(1,total_free))
         return enc*100
 
     def _count_surrounding_obstacles(self, board, pos):
-        """Bir pozisyonun çevresindeki 8 hücrede engel sayısı."""
-        r, c = pos
-        cnt = 0
-        for dr, dc in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,1),(-1,1),(1,-1)]:
-            rr = r+dr
-            cc = c+dc
+        r,c = pos
+        cnt=0
+        for dr,dc in [(-1,0),(1,0),(0,-1),(0,1),(-1,-1),(1,1),(-1,1),(1,-1)]:
+            rr=r+dr
+            cc=c+dc
             if 0<=rr<board.size and 0<=cc<board.size:
                 cell = board.grid[rr][cc]
-                if cell == 'X' or cell == 'R':
-                    cnt += 1
+                if cell=='X' or cell=='R':
+                    cnt+=1
         return cnt
 
     def _get_empty_positions(self, board):
-        empties = []
+        em=[]
         for r in range(board.size):
             for c in range(board.size):
                 if board.grid[r][c] is None:
-                    empties.append((r,c))
-        return empties
+                    em.append((r,c))
+        return em
 
     def _prune_moves(self, board, player, moves, limit):
-        scored = []
+        scored=[]
         for mv in moves:
-            tempb = self._clone_board(board)
-            tempb.move_piece(player, mv)
-            sc = self._evaluate_board(tempb, player)
-            scored.append((mv, sc))
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return [m for m,_ in scored[:limit]]
+            tb = self._clone_board(board)
+            tb.move_piece(player,mv)
+            sc = self._evaluate_board(tb,player)
+            scored.append((mv,sc))
+        scored.sort(key=lambda x:x[1], reverse=True)
+        return [x[0] for x in scored[:limit]]
 
     def _prune_obstacles(self, board, empties, player, top_k=6):
+        """
+        İyileştirilmiş engel seçimi
+        En stratejik engel pozisyonlarını bulur
+        """
         scored = []
-        opponent = 'W' if player=='B' else 'B'
-        op_moves = len(board.get_valid_moves(opponent))
+        opp = ('W' if player == 'B' else 'B')
+        base_opm = len(board.get_valid_moves(opp))
+        opp_pos = board.black_pos if opp == 'B' else board.white_pos
+        my_pos = board.black_pos if player == 'B' else board.white_pos
+        
         for e in empties:
             tb = self._clone_board(board)
             tb.place_obstacle(e)
+            
+            # Kendimi ablukaya sokuyorum mu?
             if tb.is_abluka(player):
                 continue
-            sc = self._evaluate_board(tb, player)
-            # rakibin mobilitesini ne kadar düşürüyor
-            op_m_after = len(tb.get_valid_moves(opponent))
-            diff = op_moves - op_m_after
-            sc += diff*15
-            scored.append((e, sc))
+            
+            score = 0
+            
+            # 1. Rakibin hamle sayısını azalt (en önemli)
+            after_op = len(tb.get_valid_moves(opp))
+            mobility_reduction = base_opm - after_op
+            score += mobility_reduction * 50
+            
+            # 2. Rakibe yakın engeller daha değerli
+            dist_to_opp = abs(e[0] - opp_pos[0]) + abs(e[1] - opp_pos[1])
+            if dist_to_opp <= 2:
+                score += 80  # Çok yakın
+            elif dist_to_opp <= 3:
+                score += 40  # Yakın
+            else:
+                score += max(0, 20 - dist_to_opp * 3)  # Uzakta
+            
+            # 3. Benden uzak engeller daha iyi (kendi alanımı daraltmamak için)
+            dist_to_me = abs(e[0] - my_pos[0]) + abs(e[1] - my_pos[1])
+            if dist_to_me >= 3:
+                score += 30  # İyi, uzak
+            elif dist_to_me <= 1:
+                score -= 40  # Kötü, çok yakın
+            
+            # 4. Rakibin kaçış yollarını kes
+            # Engel, rakibin merkeze veya açık alana giden yolda mı?
+            center = board.size // 2
+            # Rakip merkeze gidiyor mu? (mesafe kontrolü)
+            opp_to_center = abs(opp_pos[0] - center) + abs(opp_pos[1] - center)
+            obs_to_center = abs(e[0] - center) + abs(e[1] - center)
+            
+            # Engel rakiple merkez arasındaysa bonus
+            if obs_to_center < opp_to_center and dist_to_opp <= 3:
+                score += 50
+            
+            # 5. Köşelere doğru itmek
+            # Rakip zaten köşeye yakınsa, o tarafı tıka
+            corners = [(0, 0), (0, board.size-1), (board.size-1, 0), (board.size-1, board.size-1)]
+            for corner in corners:
+                corner_dist_opp = abs(opp_pos[0] - corner[0]) + abs(opp_pos[1] - corner[1])
+                corner_dist_obs = abs(e[0] - corner[0]) + abs(e[1] - corner[1])
+                
+                if corner_dist_opp <= 3 and corner_dist_obs < corner_dist_opp:
+                    score += 35  # Rakibi köşeye sıkıştır
+            
+            # 6. Dar geçitleri kapat
+            # Bu engel rakibin geçebileceği bir koridoru kapatıyor mu?
+            # Engelin etrafındaki engel yoğunluğu
+            neighbors_with_obstacles = 0
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                nr, nc = e[0] + dr, e[1] + dc
+                if 0 <= nr < board.size and 0 <= nc < board.size:
+                    if board.grid[nr][nc] in ('X', 'R'):
+                        neighbors_with_obstacles += 1
+            
+            # Eğer etrafında 2-3 engel varsa, bu bir geçit kapatma olabilir
+            if neighbors_with_obstacles >= 2:
+                score += 60  # Geçit kapatma bonusu
+            
+            # 7. Genel pozisyon değerlendirmesi
+            general_eval = self._evaluate_board(tb, player)
+            score += general_eval / 20.0  # Normalize et
+            
+            scored.append((e, score))
+        
         if not scored:
             return empties[:top_k]
+        
         scored.sort(key=lambda x: x[1], reverse=True)
-        return [pos for pos,_ in scored[:top_k]]
+        return [x[0] for x in scored[:top_k]]
 
     def _clone_board(self, board):
         from abluka.game_logic import Board
@@ -1238,100 +1252,167 @@ class AIPlayer:
         clone.white_pos = board.white_pos
         clone.obstacles = board.obstacles.copy()
         return clone
+    
+    def _is_corner_position(self, pos, board_size):
+        """Köşe pozisyonu mu kontrol et"""
+        row, col = pos
+        return (row in [0, board_size - 1]) and (col in [0, board_size - 1])
+    
+    def _is_edge_position(self, pos, board_size):
+        """Kenar pozisyonu mu kontrol et"""
+        row, col = pos
+        return row in [0, board_size - 1] or col in [0, board_size - 1]
+    
+    def _is_safe_move(self, board, player, move_pos, obstacle_pos):
+        """
+        Hamle güvenli mi? Gelecek turları simüle ederek kontrol et.
+        
+        Bu fonksiyon:
+        1. Hamlede sonra kendimiz ablukada mı kontrol eder
+        2. Hamle sonrası en az min_safe_moves kadar hamle kalıyor mu kontrol eder
+        3. Gelecek N tur için simülasyon yapar
+        4. Köşe/kenar tehlikelerini kontrol eder
+        """
+        # Hamleyi simüle et
+        test_board = self._clone_board(board)
+        test_board.move_piece(player, move_pos)
+        test_board.place_obstacle(obstacle_pos)
+        
+        # 1. Direkt abluka kontrolü
+        if test_board.is_abluka(player):
+            return False, "Direkt abluka"
+        
+        # 2. Minimum hamle sayısı kontrolü
+        my_moves = test_board.get_valid_moves(player)
+        if len(my_moves) < self.min_safe_moves:
+            return False, f"Çok az hamle ({len(my_moves)} < {self.min_safe_moves})"
+        
+        # 3. Köşe tehlikesi kontrolü
+        if self._is_corner_position(move_pos, board.size):
+            # Köşedeysek, çıkış yolu var mı?
+            corner_moves = len(my_moves)
+            if corner_moves < 4:  # Köşede ve az hamle = tehlikeli
+                return False, f"Köşe tehlikesi (sadece {corner_moves} hamle)"
+        
+        # 4. Kenar tehlikesi - eğer kenara gidiyorsak en az 5 hamle olmalı
+        if self._is_edge_position(move_pos, board.size):
+            if len(my_moves) < 5:
+                return False, f"Kenar tehlikesi (sadece {len(my_moves)} hamle)"
+        
+        # 5. Engel kendi pozisyonuma çok yakın mı?
+        my_pos = move_pos
+        dist_to_obstacle = abs(my_pos[0] - obstacle_pos[0]) + abs(my_pos[1] - obstacle_pos[1])
+        if dist_to_obstacle <= 1:
+            # Hemen yanıma engel koyuyorum - bu güvenli mi?
+            # Etrafımı kontrol et
+            surrounding_obstacles = self._count_surrounding_obstacles(test_board, my_pos)
+            if surrounding_obstacles >= 4:  # 4 veya daha fazla komşu engel = tehlikeli
+                return False, f"Etrafım çok engelli ({surrounding_obstacles}/8)"
+        
+        # 6. Gelecek turları simüle et
+        opponent = 'W' if player == 'B' else 'B'
+        
+        for future_turn in range(self.future_turns_check):
+            # Rakibin en kötü hamlesini simüle et
+            opp_moves = test_board.get_valid_moves(opponent)
+            if not opp_moves:
+                break  # Rakip ablukada, güzel!
+            
+            # Rakip beni en çok sıkıştıran hamleyi yapar
+            worst_case_my_moves = len(my_moves)
+            worst_obstacle = None
+            
+            for opp_move in opp_moves[:5]:  # İlk 5 hamleyi kontrol et
+                temp_b = self._clone_board(test_board)
+                temp_b.move_piece(opponent, opp_move)
+                empties = self._get_empty_positions(temp_b)[:8]
+                
+                for obs in empties:
+                    temp_b2 = self._clone_board(temp_b)
+                    temp_b2.place_obstacle(obs)
+                    
+                    future_my_moves = len(temp_b2.get_valid_moves(player))
+                    if future_my_moves < worst_case_my_moves:
+                        worst_case_my_moves = future_my_moves
+                        worst_obstacle = obs
+                        
+                        if worst_case_my_moves == 0:
+                            return False, f"Gelecek tur {future_turn + 1}'de abluka riski"
+            
+            # Gelecek turda çok az hamlem kalıyor mu?
+            if worst_case_my_moves < self.min_safe_moves - 1:
+                return False, f"Gelecek tur {future_turn + 1}'de risk ({worst_case_my_moves} hamle)"
+            
+            # Bir sonraki tur için tahtayı güncelle
+            if worst_obstacle and opp_moves:
+                test_board = self._clone_board(test_board)
+                # Rakibin en kötü hamlesini yap
+                test_board.move_piece(opponent, opp_moves[0])
+                test_board.place_obstacle(worst_obstacle)
+                
+                my_moves = test_board.get_valid_moves(player)
+                if not my_moves:
+                    return False, f"Gelecek tur {future_turn + 1}'de abluka"
+        
+        return True, "Güvenli"
+    
+    def _get_escape_routes(self, board, player):
+        """
+        Kaçış yollarını değerlendir - açık alanlara giden yollar
+        """
+        my_pos = board.black_pos if player == 'B' else board.white_pos
+        center = board.size // 2
+        
+        escape_value = 0
+        
+        # Merkeze açık yol var mı?
+        if abs(my_pos[0] - center) <= 2 and abs(my_pos[1] - center) <= 2:
+            escape_value += 50  # Merkezdeyiz, iyi
+        
+        # Her yöne kaç adım gidebilirim?
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]
+        
+        for dr, dc in directions:
+            steps = 0
+            r, c = my_pos
+            
+            for _ in range(3):  # 3 adım ileriye bak
+                r += dr
+                c += dc
+                
+                if 0 <= r < board.size and 0 <= c < board.size:
+                    if board.grid[r][c] is None:
+                        steps += 1
+                    else:
+                        break
+                else:
+                    break
+            
+            escape_value += steps * 10
+        
+        return escape_value
 
     def _evaluate_move(self, board, player, move):
-        """Hızlı tek hamle değerlendirmesi."""
         tb = self._clone_board(board)
         tb.move_piece(player, move)
-        return self._evaluate_board(tb, player)
+        return self._evaluate_board(tb,player)
 
-    def _random_reaction(self, emoji_list, msg_list):
-        return f"{random.choice(emoji_list)} {random.choice(msg_list)}"
+    def _random_reaction(self, emo_list, msg_list):
+        return f"{random.choice(emo_list)} {random.choice(msg_list)}"
 
     def _assess_emotion(self, board, player):
-        opp = 'W' if player=='B' else 'B'
-        my_mob = len(board.get_valid_moves(player))
-        op_mob = len(board.get_valid_moves(opp))
-        if self.last_mobility is not None and my_mob < self.last_mobility:
-            self.current_message = self._random_reaction(
-                self.emojis['worried'], self.messages['worried']
-            )
-        elif op_mob == 0:
-            self.current_message = self._random_reaction(
-                self.emojis['smug'], self.messages['confident']
-            )
-        elif my_mob == 1:
-            self.current_message = self._random_reaction(
-                self.emojis['worried'], self.messages['trapped']
-            )
+        opp = ('W' if player=='B' else 'B')
+        my_m = len(board.get_valid_moves(player))
+        op_m = len(board.get_valid_moves(opp))
+        if self.last_mobility is not None and my_m<self.last_mobility:
+            self.current_message = self._random_reaction(self.emojis['worried'], self.messages['worried'])
+        elif op_m==0:
+            self.current_message = self._random_reaction(self.emojis['smug'], self.messages['confident'])
+        elif my_m==1:
+            self.current_message = self._random_reaction(self.emojis['worried'], self.messages['trapped'])
         else:
-            if random.random() < 0.2:
-                self.current_message = self._random_reaction(
-                    self.emojis['thinking'], self.messages['thinking']
-                )
+            if random.random()<0.2:
+                self.current_message = self._random_reaction(self.emojis['thinking'], self.messages['thinking'])
             else:
                 self.current_message = None
-        self.last_mobility = my_mob
-
-    # Yeni self-play metotları
-    def do_self_play(self, game_count=10):
-        """AI'ın kendi kendine oynayarak öğrenmesi"""
-        import time
-        from abluka.game_logic import Game
-        
-        print(f"\n[RL] Self-play başlatılıyor: {game_count} oyun...")
-        start_time = time.time()
-        
-        # Self-play modunu belirle
-        self._in_self_play = True
-        
-        # Başlangıç durum sayısı
-        old_state_count = len(self.q_table)
-        
-        # Self-play döngüsü
-        for i in range(game_count):
-            # Yeni oyun oluştur
-            game = Game()
-            
-            # Oyun bitene kadar devam et
-            while not game.is_game_over:
-                current_player = game.current_player
-                
-                # Sıra siyah oyuncuda - exploration'ı arttır
-                if current_player == 'B':
-                    temp_exploration = self.exploration_rate
-                    self.exploration_rate = min(0.7, self.exploration_rate * 1.2)  # Daha fazla keşif
-                    move, obstacle = self._choose_move_ultra_ml(game.board, current_player, 1.0, time.time())
-                    self.exploration_rate = temp_exploration  # Geri al
-                else:
-                    move, obstacle = self._choose_move_ultra_ml(game.board, current_player, 1.0, time.time())
-                
-                # Hamleyi uygula
-                game.make_move(move, obstacle)
-            
-            # Oyun sonu öğrenimi
-            winner = game.winner
-            self.game_over_update(winner, 'B')  # Siyah oyuncu olarak analiz et
-            
-            # Beyaz oyuncu olarak da öğren
-            self.current_game_states = []
-            self.current_game_moves = []
-            self.current_game_rewards = []
-            self.game_over_update(winner, 'W')  # Beyaz oyuncu olarak analiz et
-            
-            # İlerleme bilgisi
-            if (i+1) % 5 == 0 or i == game_count-1:
-                elapsed = time.time() - start_time
-                print(f"[RL] {i+1}/{game_count} oyun tamamlandı ({elapsed:.1f}s), durum sayısı: {len(self.q_table)}")
-        
-        # Self-play modunu kapat
-        self._in_self_play = False
-        
-        # Öğrenme sonuçları
-        new_states_count = len(self.q_table) - old_state_count
-        print(f"\n[RL] Self-play tamamlandı!")
-        print(f"[RL] Toplam durum sayısı: {len(self.q_table)} (öğrenilen yeni durumlar: {new_states_count})")
-        
-        # Öğrenilen bilgiyi kaydet
-        self.save_model()
-        return new_states_count
+        self.last_mobility = my_m

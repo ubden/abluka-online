@@ -1,0 +1,318 @@
+Abluka AI Log - 2025-03-31 16:33:41
+Mod (Difficulty): easy
+------------------------------------------------
+
+Hamle #1
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (1, 3)
+Engel: (5, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . X . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #2
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 2)
+Engel: (1, 4)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . . B . . .
+. . . . . . .
+. . . . . . .
+. . . . . . .
+. . . X . . .
+. . . W . . .
+------------------------------------------------
+
+Hamle #3
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 2)
+Engel: (4, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %56.7
+Tahta Durumu:
+. . . . . . .
+. . . . X . .
+. . B . . . .
+. . . . . . .
+. . X . . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #4
+Oyuncu: AI (W)
+Taş Hamlesi: (4, 3)
+Engel: (1, 2)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . . . X . .
+. . B . . . .
+. . . . . . .
+. . X . . . .
+. . W X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #5
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 3)
+Engel: (4, 4)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . . . . .
+. . . B . . .
+. . X W X . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #6
+Oyuncu: AI (W)
+Taş Hamlesi: (5, 4)
+Engel: (4, 0)
+Strateji: Easy => Rastgele hamle
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . . . . .
+. . . B . . .
+. . X W X . .
+. . . X . . .
+. . . . . . .
+------------------------------------------------
+
+Hamle #7
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (5, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %50.0
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . . . . .
+. . . . . . .
+X . X B X . .
+. . . X W X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #8
+Oyuncu: AI (W)
+Taş Hamlesi: (4, 5)
+Engel: (3, 2)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . . . . .
+. . . . . . .
+X . X B X . .
+. . . X W X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #9
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 4)
+Engel: (3, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %55.0
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . . . . .
+. . X . B X .
+X . X . X W .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #10
+Oyuncu: AI (W)
+Taş Hamlesi: (3, 6)
+Engel: (2, 3)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . . . . .
+. . X . B X .
+X . X . X W .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #11
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (2, 5)
+Engel: (2, 6)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %70.0
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . X . B X
+. . X . . X W
+X . X . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #12
+Oyuncu: AI (W)
+Taş Hamlesi: (4, 5)
+Engel: (2, 4)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . X . B X
+. . X . . X W
+X . X . X . .
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #13
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 6)
+Engel: (4, 6)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %36.7
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . X X . X
+. . X . . X B
+X . X . X W X
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #14
+Oyuncu: AI (W)
+Taş Hamlesi: (3, 4)
+Engel: (1, 5)
+Strateji: Easy => Rastgele hamle
+Tahta Durumu:
+. . . . . . .
+. . X . X . .
+. . . X X . X
+. . X . . X B
+X . X . X W X
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #15
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 5)
+Engel: (2, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %60.0
+Tahta Durumu:
+. . . . . . .
+. . X . X X .
+. . . X X X X
+. . X . W X .
+X . X . X B X
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #16
+Oyuncu: AI (W)
+Taş Hamlesi: (3, 3)
+Engel: (4, 1)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . X . X X .
+. . . X X X X
+. . X . W X .
+X . X . X B X
+. . . X . X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #17
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (5, 4)
+Engel: (2, 2)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %80.0
+Tahta Durumu:
+. . . . . . .
+. . X . X X .
+. . X X X X X
+. . X W . X .
+X X X . X . X
+. . . X B X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #18
+Oyuncu: AI (W)
+Taş Hamlesi: (3, 4)
+Engel: (6, 3)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . X . X X .
+. . X X X X X
+. . X W . X .
+X X X . X . X
+. . . X B X .
+. . . . . . .
+------------------------------------------------
+
+Hamle #19
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (4, 3)
+Engel: (4, 5)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %90.0
+Tahta Durumu:
+. . . . . . .
+. . X . X X .
+. . X X X X X
+. . X . W X .
+X X X B X X X
+. . . X . X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #20
+Oyuncu: AI (W)
+Taş Hamlesi: (3, 3)
+Engel: (5, 1)
+Strateji: Easy => sabit derinlikli minimax
+Tahta Durumu:
+. . . . . . .
+. . X . X X .
+. . X X X X X
+. . X . W X .
+X X X B X X X
+. . . X . X .
+. . . X . . .
+------------------------------------------------
+
+Hamle #21
+Oyuncu: İnsan (Human)
+Taş Hamlesi: (3, 4)
+Engel: (4, 3)
+Strateji: İnsan oyuncu hamlesi - Kazanma olasılığı: %5.0
+Tahta Durumu:
+. . . . . . .
+. . X . X X .
+. . X X X X X
+. . X W B X .
+X X X X X X X
+. X . X . X .
+. . . X . . .
+------------------------------------------------
